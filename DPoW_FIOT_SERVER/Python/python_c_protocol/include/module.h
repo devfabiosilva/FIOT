@@ -1,3 +1,10 @@
+/*
+	AUTHOR: Fábio Pereira da Silva
+	YEAR: 2019
+	LICENSE: MIT
+	EMAIL: fabioegel@gmail.com or fabioegel@protonmail.com
+*/
+
 //Qua 18 Dez 2019 22:17:28 -03
 
 #define F_NANO_TRANSACTION_RAW_DATA_SZ_MAX (size_t)512
@@ -21,7 +28,6 @@ typedef struct f_nano_hw_transaction_hdr_t {
 
 typedef struct f_nano_hw_transaction_t {
    F_NANO_TRANSACTION_HDR hdr;
-   //uint8_t publish_str[F_NANO_MQTT_PUBLISH_STR_SZ];
    uint8_t rawdata[F_NANO_TRANSACTION_RAW_DATA_SZ_MAX];
 } __attribute__((packed)) F_NANO_HW_TRANSACTION;
 

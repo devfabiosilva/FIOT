@@ -1,5 +1,14 @@
+#
+#	AUTHOR: Fábio Pereira da Silva
+#	YEAR: 2019
+#	LICENSE: MIT
+#	EMAIL: fabioegel@gmail.com or fabioegel@protonmail.com
+#
+
+# Sexta 20 Dez 2019 18:45:20 -03 
+
 from distutils.core import setup, Extension
-#Sex 20 Dez 2019 18:45:20 -03 
+
 def main():
     setup(name="fiot_raw_data_obj_name",
         version="1.0.0",

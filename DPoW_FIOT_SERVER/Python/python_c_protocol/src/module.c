@@ -1,3 +1,10 @@
+/*
+	AUTHOR: Fábio Pereira da Silva
+	YEAR: 2019
+	LICENSE: MIT
+	EMAIL: fabioegel@gmail.com or fabioegel@protonmail.com
+*/
+
 //#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include "structmember.h"
@@ -120,18 +127,6 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
 
 }
 
-static PyObject *fiot_raw_data_obj_name(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
-{
-    if (self->raw_data_sz==0) {
-        PyErr_SetString(PyExc_AttributeError, "raw_data_sz");
-        return NULL;
-    }
-    if (self->raw_data==NULL) {
-        PyErr_SetString(PyExc_AttributeError, "raw_data");
-        return NULL;
-    }
-    return PyUnicode_FromFormat("%i", self->raw_data_sz);
-}
 //get
 static PyObject *fgetlasterror(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
@@ -254,12 +249,40 @@ set_raw_balance_EXIT1:
 
 }
 
+static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   size_t sz_tmp;
+
+   if ((sz_tmp=(size_t)self->sent_raw_data_sz)>F_NANO_TRANSACTION_MAX_SZ) {
+
+      PyErr_SetString(PyExc_MemoryError, fpyc_err_msg(MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_MEM_OVFL));
+
+      return NULL;
+
+   } else if (sz_tmp==0)
+      return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, NULL, 0);
+
+   if ((f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->sent_raw_data, 0))) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_VERIFY_INCOMING_PROTOCOL, f_last_error));
+
+      return NULL;
+
+   }
+
+   return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)self->sent_raw_data, (Py_ssize_t)sz_tmp);
+
+}
+
 
 static PyMethodDef fiot_methods[] = {
-    {"namea", (PyCFunction)fiot_raw_data_obj_name, METH_NOARGS, "Returns the data_sz"},
+
     {"fgetlasterr", (PyCFunction)fgetlasterror, METH_NOARGS, "Returns last error of Fenix-IoT protocol"},
     {"set_raw_balance", (PyCFunction)set_raw_balance, METH_VARARGS|METH_KEYWORDS, "Prepare protocol to send balance (raw balance) to wallet"},
-    {NULL, NULL, 0, NULL} 
+    {"get_last_sent_protocol", (PyCFunction)get_last_sent_protocol, METH_NOARGS, "Returns last data sent to Fenix-IoT Client"},
+    {NULL, NULL, 0, NULL}
+
 };
 
 static PyMemberDef FIOT_RAW_DATA_OBJ_members[] = {
@@ -297,33 +320,44 @@ PyMODINIT_FUNC PyInit_fiot(void)
 
    PyObject *m;
    if (PyType_Ready(&FIOT_RAW_DATA_OBJ_type) < 0) {
-   //PyExc_Exception
+
       PyErr_SetString(PyExc_Exception, "\n\"FIOT_RAW_DATA_OBJ_type\" is not available\n");
       f_last_error=PyC_ERR_DATA_OBJ_NOT_READY;
+
       return NULL;
+
    }
 
    if (!(m=PyModule_Create(&FIOT_RAW_DATA_OBJmodule))) {
+
       PyErr_SetString(PyExc_Exception, "\nCannot create module \"FIOT_RAW_DATA_OBJ_type\"\n");
       f_last_error=PyC_ERR_DATA_OBJ_CREATE;
+
       return NULL;
+
    }
 
    Py_INCREF(&FIOT_RAW_DATA_OBJ_type);
    if (PyModule_AddObject(m, "init", (PyObject *) &FIOT_RAW_DATA_OBJ_type) < 0) {
+
       PyErr_SetString(PyExc_Exception, "\nCannot create module \"protocol\" from \"FIOT_RAW_DATA_OBJ_type\"\n");
       Py_DECREF(&FIOT_RAW_DATA_OBJ_type);
       Py_DECREF(m);
       f_last_error=PyC_ERR_DATA_OBJ_CREATE_ATTR;
+
       return NULL;
+
    }
 
    if (PyModule_AddFunctions(m, mMethods)) {
+
       PyErr_SetString(PyExc_Exception, "\nCannot add method to \"fiot\"\n");
       Py_DECREF(&FIOT_RAW_DATA_OBJ_type);
       Py_DECREF(m);
       f_last_error=PyC_ERR_ADD_METHOD;
+
       return NULL;
+
    }
 
    f_last_error=PyC_ERR_OK;

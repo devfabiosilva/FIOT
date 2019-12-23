@@ -1,10 +1,17 @@
+/*
+	AUTHOR: Fábio Pereira da Silva
+	YEAR: 2019
+	LICENSE: MIT
+	EMAIL: fabioegel@gmail.com or fabioegel@protonmail.com
+*/
+
 //Sáb 21 Dez 2019 19:13:02 -03
+
 #include <string.h>
-//#include <stdlib.h>
 #include <time.h>
 #include <stdint.h>
 #include <stdio.h>
-//#include "../include/module.h"
+
 #include "../include/fpyc_err.h"
 #include "../include/fiot_commands.h"
 
@@ -140,7 +147,7 @@ FPYC_ERR prepare_command(F_NANO_HW_TRANSACTION *buffer, void *raw_data)
 
 }
 
-FPYC_ERR verify_incoming_protocol(F_NANO_HW_TRANSACTION *buffer)
+FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *buffer, int is_incoming)
 {
    int err;
    uint32_t crc32_tmp;
@@ -148,8 +155,14 @@ FPYC_ERR verify_incoming_protocol(F_NANO_HW_TRANSACTION *buffer)
    if (buffer->hdr.preamble^F_PREAMBLE)
       return PyC_ERR_INVALID_INCOMING_PREAMBLE;
 
-   if (buffer->hdr.command&0x00000001)
-      return PyC_ERR_IS_NOT_INCOMING_COMMAND;
+   if (buffer->hdr.command&0x00000001) {
+
+      if (is_incoming)
+         return PyC_ERR_IS_NOT_INCOMING_COMMAND;
+
+   } else if (is_incoming==0)
+      return PyC_ERR_IS_NOT_FROM_THIS_SERVER_COMMAND;
+
 
    if ((buffer->hdr.command)>(LAST_COMMAND))
       return PyC_ERR_INVALID_INCOMING_COMMAND;

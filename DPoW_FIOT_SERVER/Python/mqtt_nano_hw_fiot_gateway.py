@@ -1,3 +1,9 @@
+#
+#	AUTHOR: Fábio Pereira da Silva
+#	YEAR: 2019
+#	LICENSE: MIT
+#	EMAIL: fabioegel@gmail.com or fabioegel@protonmail.com
+#
 
 #Dom 15 Dez 2019 20:35:02 -03
 import paho.mqtt.client as mqtt
@@ -24,7 +30,7 @@ def on_message(client, userdata, msg):
     M=msg.payload
     print(M.decode(os_encoding))
     print(type(msg.payload))
-#    N=farray.array('i', 
+
 
 os_encoding = locale.getpreferredencoding()
 

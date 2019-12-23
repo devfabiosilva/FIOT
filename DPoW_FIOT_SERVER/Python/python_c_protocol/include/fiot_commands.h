@@ -1,8 +1,15 @@
+/*
+	AUTHOR: Fábio Pereira da Silva
+	YEAR: 2019
+	LICENSE: MIT
+	EMAIL: fabioegel@gmail.com or fabioegel@protonmail.com
+*/
+
 #include "module.h"
 //#include "fpyc_err.h"
 
 FPYC_ERR prepare_command(F_NANO_HW_TRANSACTION *, void *);
-FPYC_ERR verify_incoming_protocol(F_NANO_HW_TRANSACTION *);
+FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 
 #define CMD_SEND_RAW_BALANCE_TO_CLIENT (uint32_t)(1<<1)|1
 //pub_add: Publish addrs

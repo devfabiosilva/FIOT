@@ -1,4 +1,11 @@
-//Sex 20 Dez 2019 21:15:30 -03
+/*
+	AUTHOR: Fábio Pereira da Silva
+	YEAR: 2019
+	LICENSE: MIT
+	EMAIL: fabioegel@gmail.com or fabioegel@protonmail.com
+*/
+
+//Sexta 20 Dez 2019 21:15:30 -03
 
 char *fpyc_err_msg(char *, int);
 
@@ -21,6 +28,7 @@ typedef enum err_t {
    PyC_ERR_READING_FILE,
    PyC_ERR_INVALID_INCOMING_PREAMBLE,
    PyC_ERR_IS_NOT_INCOMING_COMMAND,
+   PyC_ERR_IS_NOT_FROM_THIS_SERVER_COMMAND,
    PyC_ERR_INVALID_INCOMING_COMMAND,
    PyC_ERR_INCOMING_COMMAND_RAW_DATA_SZ,
    PyC_ERR_INCOMING_INVALID_CHKSUM,
@@ -33,3 +41,5 @@ typedef enum err_t {
 #define MSG_ERR_ALLOC_BUFFER "\nCannot alloc buffer \"FIOT_RAW_DATA_OBJ\"\n"
 #define MSG_ERR_MAX_STR_OVFL "\nMax string overflow\n"
 #define MSG_ERR_EMPTY_STR "\nForbidden empty string\n"
+#define MSG_ERR_MAX_DATA_MEMORY_OVFL "\nSize exceeds max data memory. Overflow\n"
+#define MSG_ERR_VERIFY_INCOMING_PROTOCOL "\nError when verifying incoming protocol\n"
