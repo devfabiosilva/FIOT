@@ -4,8 +4,9 @@
 #include <time.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "../include/module.h"
+//#include "../include/module.h"
 #include "../include/fpyc_err.h"
+#include "../include/fiot_commands.h"
 
 uint32_t crc32_init(unsigned char *p, size_t len, uint32_t crcinit)
 {
@@ -136,6 +137,37 @@ FPYC_ERR prepare_command(F_NANO_HW_TRANSACTION *buffer, void *raw_data)
    buffer->hdr.crc32=crc32_tmp;
 
    return PyC_ERR_OK;
+
+}
+
+FPYC_ERR verify_incoming_protocol(F_NANO_HW_TRANSACTION *buffer)
+{
+   int err;
+   uint32_t crc32_tmp;
+
+   if (buffer->hdr.preamble^F_PREAMBLE)
+      return PyC_ERR_INVALID_INCOMING_PREAMBLE;
+
+   if (buffer->hdr.command&0x00000001)
+      return PyC_ERR_IS_NOT_INCOMING_COMMAND;
+
+   if ((buffer->hdr.command)>(LAST_COMMAND))
+      return PyC_ERR_INVALID_INCOMING_COMMAND;
+
+   if (buffer->hdr.raw_data_sz>F_NANO_TRANSACTION_RAW_DATA_SZ_MAX)
+      return PyC_ERR_INCOMING_COMMAND_RAW_DATA_SZ;
+
+   err=PyC_ERR_OK;
+
+   crc32_tmp=buffer->hdr.crc32;
+   buffer->hdr.crc32=0;
+
+   if (crc32_init((unsigned char *)buffer, sizeof(F_NANO_TRANSACTION_HDR)+buffer->hdr.raw_data_sz, 0)^crc32_tmp)
+      err=PyC_ERR_INCOMING_INVALID_CHKSUM;
+
+   buffer->hdr.crc32=crc32_tmp;
+
+   return err;
 
 }
 

@@ -1,4 +1,7 @@
-//Sex 20 Dez 2019 21:15:30 -03 
+//Sex 20 Dez 2019 21:15:30 -03
+
+char *fpyc_err_msg(char *, int);
+
 typedef enum err_t {
    PyC_ERR_OK=0,
    PyC_ERR_BUFFER_ALLOC,
@@ -15,9 +18,18 @@ typedef enum err_t {
    PyC_ERR_PUBLISH_ADDR_OVFL,
    PyC_ERR_F_NANO_TRANSACTION_RAW_DATA_SZ_MAX_OVF,
    PyC_ERR_CANT_OPEN_FILE,
-   PyC_ERR_READING_FILE
+   PyC_ERR_READING_FILE,
+   PyC_ERR_INVALID_INCOMING_PREAMBLE,
+   PyC_ERR_IS_NOT_INCOMING_COMMAND,
+   PyC_ERR_INVALID_INCOMING_COMMAND,
+   PyC_ERR_INCOMING_COMMAND_RAW_DATA_SZ,
+   PyC_ERR_INCOMING_INVALID_CHKSUM,
+   PyC_ERR_STR_MAX_SZ_OVFL,
+   PyC_ERR_EMPTY_STR
 
 } FPYC_ERR;
 
 #define MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS "\nCannot parse tuple and keywords to C library\n"
 #define MSG_ERR_ALLOC_BUFFER "\nCannot alloc buffer \"FIOT_RAW_DATA_OBJ\"\n"
+#define MSG_ERR_MAX_STR_OVFL "\nMax string overflow\n"
+#define MSG_ERR_EMPTY_STR "\nForbidden empty string\n"

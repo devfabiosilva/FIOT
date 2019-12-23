@@ -6,7 +6,7 @@ def main():
         description="FIOT protocol Python interface using C library",
         author="Fábio Pereira da Silva",
         author_email="fabioegel@gmail.com",
-        ext_modules=[Extension("fiot", ["src/module.c", "src/fiot_commands.c"])])
+        ext_modules=[Extension("fiot", ["src/module.c", "src/fiot_commands.c", "src/fpyc_err.c"])])
 
 if __name__ == "__main__":
     main()

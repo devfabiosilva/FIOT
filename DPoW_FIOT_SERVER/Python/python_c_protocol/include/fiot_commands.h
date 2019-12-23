@@ -2,8 +2,26 @@
 //#include "fpyc_err.h"
 
 FPYC_ERR prepare_command(F_NANO_HW_TRANSACTION *, void *);
+FPYC_ERR verify_incoming_protocol(F_NANO_HW_TRANSACTION *);
 
 #define CMD_SEND_RAW_BALANCE_TO_CLIENT (uint32_t)(1<<1)|1
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano_wallet
+// balance: balance
+//}
+//
+
+// Client CMD's
+#define CMD_GET_RAW_BALANCE (uint32_t)(CMD_SEND_RAW_BALANCE_TO_CLIENT^0x00000001)
+//pub_add: Publish addr
+//raw_data{
+// nano_wallet: nano_wallet
+//}
+//
+
 
 
 #define MSG_ERR_PREPARE_COMMAND "\nError in prepare command function\n"
+
+#define LAST_COMMAND CMD_SEND_RAW_BALANCE_TO_CLIENT

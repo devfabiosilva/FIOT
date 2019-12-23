@@ -101,8 +101,9 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
          return (f_last_error=PyC_ERR_STRUCT_UNDEF);
       }
 
-      self->raw_data_sz=buf_sz;
-      memcpy(self->raw_data, buf, buf_sz);
+      self->raw_data_sz=buf_sz; //test
+      //memcpy(self->raw_data, buf, buf_sz);//test
+      memcpy(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str), buf, buf_sz);// test
 
       return (f_last_error=PyC_ERR_OK);
 
@@ -142,7 +143,7 @@ static PyObject *fgetlasterror(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(igno
 static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
 {
 
-   static char *kwlist[] = {"nano", "publish", "raw", NULL};
+   static char *kwlist[] = {"nano", "publish", "balance", NULL};
    char *buf_nano_addr, *pub_addr, *raw_balance;
    F_NANO_HW_TRANSACTION *buf;
    size_t sz_tmp;
@@ -169,7 +170,7 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    buf->hdr.command=CMD_SEND_RAW_BALANCE_TO_CLIENT;
    buf->hdr.raw_data_type=F_RAW_DATA_TYPE_RAW_DATA;
-
+/*
    p=(void *)(buf->rawdata);
 
    if (buf_nano_addr)
@@ -191,11 +192,70 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
    sz_tmp=(p-(void *)buf->rawdata)+strlen((const char *)p);
 
    buf->hdr.raw_data_sz=(uint32_t)(sz_tmp+1);
+*/
+
+   if (!(p=(void *)buf_nano_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata));
+
+   ret=NULL;
+
+   if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+
+      goto set_raw_balance_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+
+      goto set_raw_balance_EXIT1;
+
+   }
+
+   strncpy((char *)buf->rawdata, (const char *)p, MAX_STR_NANO_CHAR);
+
+   if ((sz_tmp=(strnlen(raw_balance, MAX_STR_RAW_BALANCE_MAX)))==MAX_STR_RAW_BALANCE_MAX) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+
+      goto set_raw_balance_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+
+      goto set_raw_balance_EXIT1;
+
+   }
+
+   strncpy((char *)(buf->rawdata+MAX_STR_NANO_CHAR), raw_balance, MAX_STR_RAW_BALANCE_MAX);
+
+   buf->hdr.raw_data_sz=MAX_STR_NANO_CHAR+MAX_STR_RAW_BALANCE_MAX;
+
+   if (!(p=(void *)pub_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str));
+
+   if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+
+      goto set_raw_balance_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+
+      goto set_raw_balance_EXIT1;
+
+   }
+
+   strncpy((char *)buf->hdr.publish_str, (const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ);
 
    if ((f_last_error=prepare_command(buf, NULL))) {
 
-      ret=NULL;
-      PyErr_SetString(PyExc_Exception, MSG_ERR_PREPARE_COMMAND);
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_PREPARE_COMMAND, f_last_error));
+
       goto set_raw_balance_EXIT1;
 
    }
@@ -288,7 +348,7 @@ PyMODINIT_FUNC PyInit_fiot(void)
    }
 
    Py_INCREF(&FIOT_RAW_DATA_OBJ_type);
-   if (PyModule_AddObject(m, "protocol", (PyObject *) &FIOT_RAW_DATA_OBJ_type) < 0) {
+   if (PyModule_AddObject(m, "init", (PyObject *) &FIOT_RAW_DATA_OBJ_type) < 0) {
       PyErr_SetString(PyExc_Exception, "\nCannot create module \"protocol\" from \"FIOT_RAW_DATA_OBJ_type\"\n");
       Py_DECREF(&FIOT_RAW_DATA_OBJ_type);
       Py_DECREF(m);
