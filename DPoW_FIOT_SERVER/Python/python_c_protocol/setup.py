@@ -3,7 +3,7 @@ from distutils.core import setup, Extension
 def main():
     setup(name="fiot_raw_data_obj_name",
         version="1.0.0",
-        description="FIOT protocol Python interface using C library",
+        description="Fenix-IoT DPoW Nano cryptocurrency protocol modules for Python 3 using C library",
         author="Fábio Pereira da Silva",
         author_email="fabioegel@gmail.com",
         ext_modules=[Extension("fiot", ["src/module.c", "src/fiot_commands.c", "src/fpyc_err.c"])])

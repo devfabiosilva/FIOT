@@ -9,7 +9,9 @@ static int f_last_error=PyC_ERR_OK;
 typedef struct {
     PyObject_HEAD
     int raw_data_sz;
+    int sent_raw_data_sz;
     unsigned char raw_data[F_NANO_TRANSACTION_MAX_SZ];
+    unsigned char sent_raw_data[F_NANO_TRANSACTION_MAX_SZ];
 } FIOT_RAW_DATA_OBJ;
 
 static PyObject *mprint(PyObject *self, PyObject *args)
@@ -41,7 +43,6 @@ static PyMethodDef mMethods[] = {
 
 static void fiot_raw_data_obj_dealloc(FIOT_RAW_DATA_OBJ *self)
 {
-   //printf("\nDestruindo na memória no endereço %lu", (unsigned long int)self);
    Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -50,15 +51,13 @@ static PyObject *fiot_raw_data_obj_new(PyTypeObject *type, PyObject *args, PyObj
    FIOT_RAW_DATA_OBJ *self;
    self=(FIOT_RAW_DATA_OBJ *)type->tp_alloc(type, 0);
 
-   //printf("\nCriando novo objC %lu", (unsigned long int)type);
-   //printf("\nCriando novo objPython %lu", (unsigned long int)self);
-    //if (self)
-    //    self->raw_data=NULL;
    f_last_error=PyC_ERR_OK;
 
-   if (self)
-      memset(self->raw_data, 0, F_NANO_TRANSACTION_MAX_SZ);
-   else {
+   if (self) {
+      self->raw_data_sz=0;
+      self->sent_raw_data_sz=0;
+      memset(self->raw_data, 0, 2*F_NANO_TRANSACTION_MAX_SZ);
+   } else {
       PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
       f_last_error=PyC_ERR_BUFFER_ALLOC;
    }
@@ -75,34 +74,40 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
    unsigned char *buf;
 
    if (!PyArg_ParseTupleAndKeywords(args, kwds, "y#", kwlist, &buf, &buf_sz)) {
+
       PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
-      //PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS
+
       return (f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS);
-      //return -1;
+
    }
 
    if (!buf) {
+
       PyErr_SetString(PyExc_BufferError, "\nParsed tuple buffer returned NULL\n");
-      //return -2;
+
       return (f_last_error=PyC_ERR_NULL_BUFFER);
+
    }
 
    if (buf_sz>0) {
 
       if (buf_sz>F_NANO_TRANSACTION_MAX_SZ) {
+
          PyErr_SetString(PyExc_MemoryError, "\nRaw data size is greater than \"F_NANO_TRANSACTION_MAX_SZ\"\n");
-         //return -4;
+
          return (f_last_error=PyC_ERR_MEM_OVFL);
+
       }
 
       if (!self) {
+
          PyErr_SetString(PyExc_Exception, "\nStructure seems not defined\n");
-         //return -5;
+
          return (f_last_error=PyC_ERR_STRUCT_UNDEF);
+
       }
 
       self->raw_data_sz=buf_sz; //test
-      //memcpy(self->raw_data, buf, buf_sz);//test
       memcpy(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str), buf, buf_sz);// test
 
       return (f_last_error=PyC_ERR_OK);
@@ -111,7 +116,6 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
 
    PyErr_SetString(PyExc_ValueError, "\nRaw data size is ZERO\n");
 
-   //return -3;
    return (f_last_error=PyC_ERR_RAW_DATA_SZ_ZERO);
 
 }
@@ -170,29 +174,6 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    buf->hdr.command=CMD_SEND_RAW_BALANCE_TO_CLIENT;
    buf->hdr.raw_data_type=F_RAW_DATA_TYPE_RAW_DATA;
-/*
-   p=(void *)(buf->rawdata);
-
-   if (buf_nano_addr)
-      strcpy((char *)p, buf_nano_addr);
-   else
-      strcpy((char *)p, "SEM ENDEREÇO");
-
-   p+=strlen((const char *)p);
-
-   if (pub_addr)
-      strncpy((char *)buf->hdr.publish_str, pub_addr, F_NANO_MQTT_PUBLISH_STR_SZ);
-   else
-      strncpy((char *)buf->hdr.publish_str, "SEM PUBLISH", F_NANO_MQTT_PUBLISH_STR_SZ);
-
-   //p+=strlen((const char *)p);
-
-   strcpy((char *)p, raw_balance);
-
-   sz_tmp=(p-(void *)buf->rawdata)+strlen((const char *)p);
-
-   buf->hdr.raw_data_sz=(uint32_t)(sz_tmp+1);
-*/
 
    if (!(p=(void *)buf_nano_addr))
       p=(void *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata));
@@ -260,30 +241,10 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    }
 
-/*
-   printf("\nTeste\n");
-   if (buf_nano_addr)
-      printf("\nNano addr %s\n", buf_nano_addr);
-   else
-      printf("\nNulo Nano addr\n");
+   self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR));
 
-   if (pub_addr)
-      printf("\nPublish address %s\n", pub_addr);
-   else
-      printf("\nNulo Pub addr\n");
-
-   if (raw_balance)
-      printf("\nRaw balance %s\n", raw_balance);
-   else
-      printf("\nRaw balance NULO\n");
-
-*/
-   //ret=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)self->raw_data, (Py_ssize_t)self->raw_data_sz);
-
-   //ret=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)buf, (Py_ssize_t)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR)));
-   memcpy((void *)self->raw_data, (void *)buf, (sz_tmp=(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))));
-   self->raw_data_sz=(int)sz_tmp;
-   ret=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)self->raw_data, (Py_ssize_t)sz_tmp);
+   ret=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
+      (size_t)self->sent_raw_data_sz), (Py_ssize_t)self->sent_raw_data_sz);
 
 set_raw_balance_EXIT1:
    memset(buf, 0, F_NANO_TRANSACTION_MAX_SZ);
@@ -291,7 +252,6 @@ set_raw_balance_EXIT1:
 
    return ret;
 
-   //return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)self->raw_data, (Py_ssize_t)self->raw_data_sz);
 }
 
 
@@ -303,8 +263,10 @@ static PyMethodDef fiot_methods[] = {
 };
 
 static PyMemberDef FIOT_RAW_DATA_OBJ_members[] = {
-    {"raw_data_sz", T_INT, offsetof(FIOT_RAW_DATA_OBJ, raw_data_sz), 0, "Size of data sent/received"},
-    {"raw_data", T_UBYTE, offsetof(FIOT_RAW_DATA_OBJ, raw_data), 0, "raw data sent/receive"},
+    {"raw_data_sz", T_INT, offsetof(FIOT_RAW_DATA_OBJ, raw_data_sz), 0, "Size of incoming data"},
+    {"sent_raw_data_sz", T_INT, offsetof(FIOT_RAW_DATA_OBJ, sent_raw_data_sz), 0, "Sent data size"},
+    {"raw_data", T_UBYTE, offsetof(FIOT_RAW_DATA_OBJ, raw_data), 0, "incoming raw data"},
+    {"sent_raw_data", T_UBYTE, offsetof(FIOT_RAW_DATA_OBJ, sent_raw_data), 0, "sent raw data"},
     {NULL, 0, 0, 0, NULL}
 };
 
@@ -324,8 +286,8 @@ static PyTypeObject FIOT_RAW_DATA_OBJ_type = {
 
 static PyModuleDef FIOT_RAW_DATA_OBJmodule = {
     PyModuleDef_HEAD_INIT,
-    .m_name="Fenix-IoT Protocol C module for Python 3",
-    .m_doc="FIOT protocol to process all I/O data via MQTT and Fenix-IoT gateway (FIOT)",
+    .m_name="Fenix-IoT DPoW Nano crytptocurrency Protocol module for Python 3",
+    .m_doc="Fenix-IoT DPoW Nano cryptocurrency protocol modules for Python 3 using C library to access low level data",
     .m_size=-1,
 };
 
