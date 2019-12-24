@@ -33,7 +33,3 @@ typedef struct f_nano_hw_transaction_t {
 
 #define F_NANO_TRANSACTION_MAX_SZ sizeof(F_NANO_HW_TRANSACTION)
 
-
-#define MAX_STR_NANO_CHAR (size_t)70 //5+56+8+1
-#define MAX_STR_RAW_BALANCE_MAX (size_t)40
-

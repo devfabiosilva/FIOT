@@ -10,9 +10,11 @@
 .text
 .globl	f_add_bn_288_le
 .type	f_add_bn_288_le, @function
-.align 4
+.align 8
 
 f_add_bn_288_le:
+
+	pushq %rbx
 
 	clc
 	movl %r8d, %r8d
@@ -57,7 +59,9 @@ p1:
 
 p2:
 
-	retq
+	popq %rbx
+
+	ret
 
 .size f_add_bn_288_le, .-f_add_bn_288_le
 

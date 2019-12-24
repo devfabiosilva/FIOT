@@ -27,7 +27,7 @@ int f_reverse(unsigned char *val, size_t val_sz)
    val_tmp=malloc(val_sz);
 
    if (!val_tmp)
-      return 2;
+      return 2002;
 
    p1=val+val_sz-1;
    p2=val_tmp;
@@ -47,15 +47,15 @@ int f_reverse(unsigned char *val, size_t val_sz)
 }
 
 #define LIST_STR_WALLET (size_t)56
-int str_wallet_to_alphabet_index(uint8_t *list, char *str_wallet, size_t str_sz)
+int str_wallet_to_alphabet_index(uint8_t *list, const char *str_wallet, size_t str_sz)
 {
    int err;
    int i, j;
-   const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
+   static const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
 
    for (j=0;j<str_sz;j++) {
 
-      err=32;
+      err=2032;
 
       for (i=0;i<32;i++)
          if (alphabet[i]==str_wallet[j]) {
@@ -73,7 +73,7 @@ int str_wallet_to_alphabet_index(uint8_t *list, char *str_wallet, size_t str_sz)
 
 }
 
-int nano_base_32_2_hex(uint8_t *res, char *str_wallet)
+int nano_base_32_2_hex(uint8_t *res, const char *str_wallet)
 {
    int i, j;
    uint8_t a, b, c;
@@ -82,18 +82,29 @@ int nano_base_32_2_hex(uint8_t *res, char *str_wallet)
    uint8_t *fp;
    F_ADD_288 displace;
 
-   if (memcmp(str_wallet, NANO_PREFIX, (size_t)(i=(int)(sizeof(NANO_PREFIX)-1)))) {
+   if ((i=(int)(strnlen(str_wallet, STR_NANO_SZ)))==STR_NANO_SZ)
+      return 2040;
 
-      if (memcmp(str_wallet, XRB_PREFIX, (size_t)(i=(int)(sizeof(XRB_PREFIX)-1))))
-         return 37;
-      else
-         str_wallet+=4;
+   if (i<64)
+      return 2039;
+
+   if (memcmp(str_wallet, NANO_PREFIX, sizeof(NANO_PREFIX)-1)) {
+
+      if (memcmp(str_wallet, XRB_PREFIX, sizeof(XRB_PREFIX)-1))
+         return 2038;
+
+      if (i^64)
+         return 2037;
+
+      str_wallet+=4;
 
    } else
       str_wallet+=5;
 
    if (str_wallet_to_alphabet_index(list_str_wallet, str_wallet, 52))
-      return 17;
+      return 2017;
+
+   i=0;
 
    list_str_wallet[52]=0;
 
@@ -134,7 +145,7 @@ int nano_base_32_2_hex(uint8_t *res, char *str_wallet)
    *(res++)=((c<<4)|(a>>1));
 
    if (str_wallet_to_alphabet_index(list_str_wallet, str_wallet+52, 8))
-      return 19;
+      return 2019;
 
    i=0;
 
@@ -158,10 +169,10 @@ int nano_base_32_2_hex(uint8_t *res, char *str_wallet)
    *res=(a|(c<<5));
 
    if (f_reverse((unsigned char *)fp+33, 5))
-      return 20;
+      return 2020;
 
    if (f_reverse((unsigned char *)fp, 33))
-      return 21;
+      return 2021;
 
    memset(displace, 0, sizeof(displace));
 
@@ -173,16 +184,34 @@ int nano_base_32_2_hex(uint8_t *res, char *str_wallet)
    f_add_bn_288_le(displace, displace, displace, NULL, 0);
 
    if (f_reverse((unsigned char *)displace, sizeof(displace)))
-      return 22; 
+      return 2022; 
 
    memcpy(fp, ((uint8_t *)displace)+3, 32);
 
    crypto_generichash((unsigned char *)buf, 5, fp, 32, NULL, 0);
 
    if (memcmp(fp+33, buf, 5))
-      return 23;
+      return 2023;
 
    return 0;
+
+}
+// 0 success/ error=non zero
+int valid_nano_wallet(const char *wallet)
+{
+
+   int err;
+   uint8_t *res;
+
+   if (!(res=malloc(LIST_STR_WALLET)))
+      return 2000;
+
+   err=nano_base_32_2_hex(res, wallet);
+
+   memset(res, 0, LIST_STR_WALLET);
+   free(res);
+
+   return err;
 
 }
 
