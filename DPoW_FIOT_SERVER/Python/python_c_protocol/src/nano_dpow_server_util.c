@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #include "../include/f_add_bn_288_le.h"
 #include "../include/nano_dpow_server_util.h"
@@ -228,7 +229,7 @@ int valid_raw_balance(const char *balance)
    int err;
    size_t balance_sz;
 
-   if ((balance_sz=strnlen(balance, MAX_RAW_STR_BALANCE_SZ)==MAX_RAW_STR_BALANCE_SZ)
+   if ((balance_sz=strnlen(balance, MAX_RAW_STR_BALANCE_SZ))==MAX_RAW_STR_BALANCE_SZ)
       return 1;
 
    if (balance_sz==0)
@@ -248,6 +249,52 @@ int valid_raw_balance(const char *balance)
    }
 
    return err;
+
+}
+
+// !!! hex_stream must be at least (size(str)-1)/2. No error sanity check!!! (Fabio)
+// 0 on success; error otherwise
+int f_str_to_hex(uint8_t *hex_stream, const char *str)
+{
+
+   char ch;
+   size_t len=strlen(str);
+   size_t i;
+
+   for (i=0;i<len;i++) {
+      ch=str[i];
+
+      if (ch>'f')
+         return 11;
+
+      if (ch<'0')
+         return 12;
+
+      ch-='0';
+
+      if (ch>9) {
+         if (ch&0x30) {
+
+            if ((ch&0x30)==0x20)
+               return 14;
+
+            ch&=0x0F;
+
+            ch+=9;
+
+            if (ch<10)
+               return 15;
+            if (ch>15)
+               return 16;
+
+         } else
+            return 13;
+      }
+
+      (i&1)?(hex_stream[i>>1]|=(uint8_t)ch):(hex_stream[i>>1]=(uint8_t)(ch<<4));
+   }
+
+   return 0;
 
 }
 

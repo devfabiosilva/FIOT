@@ -33,7 +33,8 @@ typedef enum err_t {
    PyC_ERR_INCOMING_COMMAND_RAW_DATA_SZ,
    PyC_ERR_INCOMING_INVALID_CHKSUM,
    PyC_ERR_STR_MAX_SZ_OVFL,
-   PyC_ERR_EMPTY_STR
+   PyC_ERR_EMPTY_STR,
+   PyC_ERR_NANO_FRONTIER_INVALID_SIZE
 
 } FPYC_ERR;
 
@@ -43,3 +44,5 @@ typedef enum err_t {
 #define MSG_ERR_EMPTY_STR "\nForbidden empty string\n"
 #define MSG_ERR_MAX_DATA_MEMORY_OVFL "\nSize exceeds max data memory. Overflow\n"
 #define MSG_ERR_VERIFY_INCOMING_PROTOCOL "\nError when verifying incoming protocol\n"
+#define MSG_ERR_CANT_PARSE_NANO_WALLET_FRONTIER "\nCan't parse Nano Wallet frontier\n"
+
