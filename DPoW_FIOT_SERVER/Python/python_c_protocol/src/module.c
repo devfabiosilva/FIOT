@@ -62,12 +62,16 @@ static PyObject *fiot_raw_data_obj_new(PyTypeObject *type, PyObject *args, PyObj
    f_last_error=PyC_ERR_OK;
 
    if (self) {
+
       self->raw_data_sz=0;
       self->sent_raw_data_sz=0;
       memset(self->raw_data, 0, 2*F_NANO_TRANSACTION_MAX_SZ);
+
    } else {
+
       PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
       f_last_error=PyC_ERR_BUFFER_ALLOC;
+
    }
 
    return (PyObject *)self;
@@ -209,6 +213,14 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
    } else if (sz_tmp==0) {
 
       PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+
+      goto set_raw_balance_EXIT1;
+
+   }
+
+   if ((f_last_error=valid_raw_balance(raw_balance))) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_RAW_BALANCE, f_last_error));
 
       goto set_raw_balance_EXIT1;
 

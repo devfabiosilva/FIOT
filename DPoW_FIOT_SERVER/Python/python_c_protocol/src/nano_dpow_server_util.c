@@ -51,7 +51,7 @@ int str_wallet_to_alphabet_index(uint8_t *list, const char *str_wallet, size_t s
 {
    int err;
    int i, j;
-   static const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
+   const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
 
    for (j=0;j<str_sz;j++) {
 
@@ -83,23 +83,29 @@ int nano_base_32_2_hex(uint8_t *res, const char *str_wallet)
    F_ADD_288 displace;
 
    if ((i=(int)(strnlen(str_wallet, STR_NANO_SZ)))==STR_NANO_SZ)
-      return 2040;
+      return 2041;
 
    if (i<64)
-      return 2039;
+      return 2040;
 
    if (memcmp(str_wallet, NANO_PREFIX, sizeof(NANO_PREFIX)-1)) {
 
       if (memcmp(str_wallet, XRB_PREFIX, sizeof(XRB_PREFIX)-1))
-         return 2038;
+         return 2039;
 
       if (i^64)
-         return 2037;
+         return 2038;
 
       str_wallet+=4;
 
-   } else
+   } else {
+
+      if (i^65)
+         return 2037;
+
       str_wallet+=5;
+
+   }
 
    if (str_wallet_to_alphabet_index(list_str_wallet, str_wallet, 52))
       return 2017;
@@ -210,6 +216,36 @@ int valid_nano_wallet(const char *wallet)
 
    memset(res, 0, LIST_STR_WALLET);
    free(res);
+
+   return err;
+
+}
+// 0 on success/ error=non zero
+#define MAX_RAW_STR_BALANCE_SZ (size_t)40//round up log10(2^128) + 1 (1 for null string)
+int valid_raw_balance(const char *balance)
+{
+
+   int err;
+   size_t balance_sz;
+
+   if ((balance_sz=strnlen(balance, MAX_RAW_STR_BALANCE_SZ)==MAX_RAW_STR_BALANCE_SZ)
+      return 1;
+
+   if (balance_sz==0)
+      return 2;
+
+   err=0;
+
+   for (;balance_sz;) {
+
+      if (isdigit((int)balance[--balance_sz]))
+         continue;
+
+      err=3;
+
+      break;
+
+   }
 
    return err;
 
