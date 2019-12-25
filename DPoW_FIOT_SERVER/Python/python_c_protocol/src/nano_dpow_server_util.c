@@ -58,7 +58,7 @@ int str_wallet_to_alphabet_index(uint8_t *list, const char *str_wallet, size_t s
 
       err=2032;
 
-      for (i=0;i<32;i++)
+      for (i=0;i<(sizeof(alphabet)-1);i++)
          if (alphabet[i]==str_wallet[j]) {
             err=0;
             list[j]=(uint8_t)i;

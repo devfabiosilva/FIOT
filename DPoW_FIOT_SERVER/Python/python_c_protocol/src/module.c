@@ -82,53 +82,64 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
 {
 
    static char *kwlist[] = {"raw_data", NULL};
-   int buf_sz;
+   int buf_sz, err;
    unsigned char *buf;
 
-   if (!PyArg_ParseTupleAndKeywords(args, kwds, "y#", kwlist, &buf, &buf_sz)) {
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "z#", kwlist, &buf, &buf_sz)) {
 
-      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS, f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS));
 
-      return (f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS);
+      return f_last_error;
 
    }
 
    if (!buf) {
 
-      PyErr_SetString(PyExc_BufferError, "\nParsed tuple buffer returned NULL\n");
-
-      return (f_last_error=PyC_ERR_NULL_BUFFER);
-
-   }
-
-   if (buf_sz>0) {
-
-      if (buf_sz>F_NANO_TRANSACTION_MAX_SZ) {
-
-         PyErr_SetString(PyExc_MemoryError, "\nRaw data size is greater than \"F_NANO_TRANSACTION_MAX_SZ\"\n");
-
-         return (f_last_error=PyC_ERR_MEM_OVFL);
-
-      }
-
-      if (!self) {
-
-         PyErr_SetString(PyExc_Exception, "\nStructure seems not defined\n");
-
-         return (f_last_error=PyC_ERR_STRUCT_UNDEF);
-
-      }
-
-      self->raw_data_sz=buf_sz; //test
-      memcpy(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str), buf, buf_sz);// test
+      self->raw_data_sz=0;
+      self->sent_raw_data_sz=0;
+      memset(self->raw_data, 0, 2*F_NANO_TRANSACTION_MAX_SZ);
 
       return (f_last_error=PyC_ERR_OK);
 
    }
 
-   PyErr_SetString(PyExc_ValueError, "\nRaw data size is ZERO\n");
+   if (buf_sz>F_NANO_TRANSACTION_MAX_SZ) {
 
-   return (f_last_error=PyC_ERR_RAW_DATA_SZ_ZERO);
+      PyErr_SetString(PyExc_MemoryError, fpyc_err_msg(MSG_ERR_RAW_DATA_SZ_OVFL, f_last_error=PyC_ERR_MEM_OVFL));
+
+      return f_last_error;
+   
+   } else if (buf_sz==0) {
+
+      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_RAW_DATA_SZ_IS_ZERO, f_last_error=PyC_ERR_RAW_DATA_SZ_ZERO));
+
+      return f_last_error;
+
+   }
+
+   if ((err=verify_protocol((F_NANO_HW_TRANSACTION *)buf, 1))) {
+
+      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_INVALID_INCOMING_PROTOCOL, f_last_error=PyC_ERR_INVALID_INCOMING_PROTOCOL));
+
+      return f_last_error;
+
+   }
+
+   if ((((F_NANO_HW_TRANSACTION *)buf)->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)buf_sz) {
+
+      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ, f_last_error=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ));
+
+      return f_last_error;
+
+   }
+
+   self->raw_data_sz=buf_sz;
+   self->sent_raw_data_sz=0;
+   memcpy(self->raw_data, buf, buf_sz);
+   memset(self->sent_raw_data, 0, F_NANO_TRANSACTION_MAX_SZ);
+
+   return (f_last_error=PyC_ERR_OK);
+
 
 }
 
@@ -259,7 +270,7 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR));
 
-   ret=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
+   ret=Py_BuildValue("y#", (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
       (size_t)self->sent_raw_data_sz), (Py_ssize_t)self->sent_raw_data_sz);
 
 set_raw_balance_EXIT1:
@@ -382,9 +393,8 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR));
 
-   ret=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
+   ret=Py_BuildValue("y#", (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
       (size_t)self->sent_raw_data_sz), (Py_ssize_t)self->sent_raw_data_sz);
-
 
 set_frontier_EXIT1:
    memset(buf, 0, F_NANO_TRANSACTION_MAX_SZ);
@@ -510,7 +520,7 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR));
 
-   ret=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
+   ret=Py_BuildValue("y#", (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
       (size_t)self->sent_raw_data_sz), (Py_ssize_t)self->sent_raw_data_sz);
 
 send_dpow_EXIT1:
