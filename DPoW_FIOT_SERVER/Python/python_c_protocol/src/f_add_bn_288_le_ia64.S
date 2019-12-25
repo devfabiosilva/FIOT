@@ -14,8 +14,6 @@
 
 f_add_bn_288_le:
 
-	pushq %rbx
-
 	clc
 	movl %r8d, %r8d
 	andl %r8d, %r8d
@@ -44,22 +42,20 @@ a1:
 	adcl 32(%rsi), %eax
 	movl %eax, 32(%rdx)
 
-	movl $0, %ebx
+	movl $0, %eax
 
 	jnc p1
 
-	movl $1, %ebx
+	movl $1, %eax
 p1:
 
 	test %rcx, %rcx
 
 	jz p2
 
-	movl %ebx, (%rcx)
+	movl %eax, (%rcx)
 
 p2:
-
-	popq %rbx
 
 	ret
 

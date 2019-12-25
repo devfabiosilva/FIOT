@@ -14,7 +14,9 @@
 #define MAX_STR_RAW_BALANCE_MAX (size_t)40
 #define STR_NANO_SZ (size_t)66// 65+1 Null included
 #define MAX_RAW_DATA_FRONTIER (size_t)32
+#define MAX_RAW_DATA_HASH (size_t)32
 #define MAX_STR_DATA_FRONTIER (size_t)65
+#define MAX_STR_DATA_HASH_VALUE (size_t)65
 
 #define MSG_ERR_INVALID_NANO_WALLET "\nInvalid NANO WALLET\n"
 #define MSG_ERR_INVALID_NANO_RAW_BALANCE "\nInvalid NANO Raw Balance. Is it a valid 128 bit big number?\n"
