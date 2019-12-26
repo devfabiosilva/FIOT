@@ -11,6 +11,7 @@
 #include "../include/fpyc_err.h"
 #include "../include/fiot_commands.h"
 #include "../include/nano_dpow_server_util.h"
+#include "../include/defmsg.h"
 
 static int f_last_error=PyC_ERR_OK;
 
@@ -22,30 +23,58 @@ typedef struct {
     unsigned char sent_raw_data[F_NANO_TRANSACTION_MAX_SZ];
 } FIOT_RAW_DATA_OBJ;
 
-static PyObject *mprint(PyObject *self, PyObject *args)
+//util
+static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, size_t data_sz)
 {
 
-   char *msg1=NULL, *msg2=NULL;
+   FPYC_ERR err;
 
-   if (!PyArg_ParseTuple(args, "ss", &msg1, &msg2))
-      return NULL;
+   if (data_sz>F_NANO_TRANSACTION_MAX_SZ) {
 
-   if (msg1)
-      printf("Mensagem 1 = %s\n", msg1);
-   else
-      printf("Mensagem 1 NULL\n");
+      PyErr_SetString(PyExc_MemoryError, fpyc_err_msg(MSG_ERR_RAW_DATA_SZ_OVFL, err=PyC_ERR_MEM_OVFL));
 
-   if (msg2)
-      printf("Mensagem2 = %s\n", msg2);
-   else
-      printf("Mensagem2 NULL\n");
+      return err;
+   
+   } else if (data_sz==0) {
 
-   return PyLong_FromLong((long int)1);
+      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_RAW_DATA_SZ_IS_ZERO, err=PyC_ERR_RAW_DATA_SZ_ZERO));
+
+      return err;
+
+   }
+
+   if ((err=verify_protocol((F_NANO_HW_TRANSACTION *)data, 1))) {
+
+      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_INVALID_INCOMING_PROTOCOL, err));
+
+      return err;
+
+   }
+
+   if ((((F_NANO_HW_TRANSACTION *)data)->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)data_sz) {
+
+      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ, err=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ));
+
+      return err;
+
+   }
+
+   self->raw_data_sz=data_sz;
+   memcpy(self->raw_data, data, data_sz);
+
+   return PyC_ERR_OK;
 
 }
+//-util
+
+static PyObject *about(PyObject *self, PyObject *Py_UNUSED(ignored))
+{
+   return PyUnicode_DecodeFSDefault((const char *)ABOUT_MSG);
+}
+
 
 static PyMethodDef mMethods[] = {
-    {"mprint", mprint, METH_VARARGS, "Python interface for TEST C library function by Fábio"},
+    {"about", about, METH_NOARGS, "About"},
     {NULL, NULL, 0, NULL}
 };
 
@@ -82,7 +111,7 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
 {
 
    static char *kwlist[] = {"raw_data", NULL};
-   int buf_sz, err;
+   int buf_sz;
    unsigned char *buf;
 
    if (!PyArg_ParseTupleAndKeywords(args, kwds, "z#", kwlist, &buf, &buf_sz)) {
@@ -97,48 +126,19 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
 
       self->raw_data_sz=0;
       self->sent_raw_data_sz=0;
-      memset(self->raw_data, 0, 2*F_NANO_TRANSACTION_MAX_SZ);
+      memset(self->raw_data, 0, 2*F_NANO_TRANSACTION_MAX_SZ);// !!! 2*F_NANO_TRANSACTION_MAX_SZ and NOT F_NANO_TRANSACTION_MAX_SZ !!!
 
       return (f_last_error=PyC_ERR_OK);
 
    }
 
-   if (buf_sz>F_NANO_TRANSACTION_MAX_SZ) {
-
-      PyErr_SetString(PyExc_MemoryError, fpyc_err_msg(MSG_ERR_RAW_DATA_SZ_OVFL, f_last_error=PyC_ERR_MEM_OVFL));
-
-      return f_last_error;
-   
-   } else if (buf_sz==0) {
-
-      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_RAW_DATA_SZ_IS_ZERO, f_last_error=PyC_ERR_RAW_DATA_SZ_ZERO));
-
+   if ((f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)))
       return f_last_error;
 
-   }
-
-   if ((err=verify_protocol((F_NANO_HW_TRANSACTION *)buf, 1))) {
-
-      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_INVALID_INCOMING_PROTOCOL, f_last_error=PyC_ERR_INVALID_INCOMING_PROTOCOL));
-
-      return f_last_error;
-
-   }
-
-   if ((((F_NANO_HW_TRANSACTION *)buf)->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)buf_sz) {
-
-      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ, f_last_error=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ));
-
-      return f_last_error;
-
-   }
-
-   self->raw_data_sz=buf_sz;
    self->sent_raw_data_sz=0;
-   memcpy(self->raw_data, buf, buf_sz);
    memset(self->sent_raw_data, 0, F_NANO_TRANSACTION_MAX_SZ);
 
-   return (f_last_error=PyC_ERR_OK);
+   return f_last_error;
 
 
 }
@@ -146,14 +146,39 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
 //get
 static PyObject *fgetlasterror(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
-
-   if (!self) {
-      PyErr_SetString(PyExc_Exception, "\nCannot find \"FIOT_RAW_DATA_OBJ *self\"\n");
-      return NULL;
-   }
-
    return PyLong_FromLong((long int)f_last_error);
 }
+
+static PyObject *getincomingmessage(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+
+   static char *kwlist[] = {"raw_data", NULL};
+   int buf_sz;
+   unsigned char *buf;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "z#", kwlist, &buf, &buf_sz)) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS, f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS));
+
+      return NULL;
+
+   }
+
+   if (!buf) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NULL_C_PTR, f_last_error=PyC_ERR_INVALID_NULL_C_POINTER));
+
+      return NULL;
+
+   }
+
+   if ((f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)))
+      return NULL;
+
+   return PyLong_FromLong((long int)PyC_ERR_OK);;
+
+}
+
 //set
 static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
 {
@@ -685,13 +710,14 @@ static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
 
 static PyMethodDef fiot_methods[] = {
 
-    {"fgetlasterr", (PyCFunction)fgetlasterror, METH_NOARGS, "Returns last error of Fenix-IoT protocol"},
+    {"getlasterror", (PyCFunction)fgetlasterror, METH_NOARGS, "Returns last error of Fenix-IoT protocol"},
     {"set_raw_balance", (PyCFunction)set_raw_balance, METH_VARARGS|METH_KEYWORDS, "Prepare protocol to send balance (raw balance) to wallet"},
     {"get_last_sent_protocol", (PyCFunction)get_last_sent_protocol, METH_NOARGS, "Returns last data sent to Fenix-IoT Client"},
     {"set_frontier", (PyCFunction)set_frontier, METH_VARARGS|METH_KEYWORDS,
        "Returns data protocol with Nano cryptocurrency frontier with a given address"},
     {"send_dpow", (PyCFunction)send_dpow, METH_VARARGS|METH_KEYWORDS, "Returns data protocol with calculated hash DPoW of a given address"},
     {"send_representative", (PyCFunction)send_representative, METH_VARARGS|METH_KEYWORDS, "Returns Nano Wallet with its representative"},
+    {"getdataprotocol", (PyCFunction)getincomingmessage, METH_VARARGS|METH_KEYWORDS, "Check and process protocol if success"},
     {NULL, NULL, 0, NULL}
 
 };

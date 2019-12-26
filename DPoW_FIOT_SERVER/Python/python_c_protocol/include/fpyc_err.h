@@ -35,7 +35,8 @@ typedef enum err_t {
    PyC_ERR_NANO_FRONTIER_INVALID_SIZE,
    PyC_ERR_NANO_HASH_INVALID_SIZE,
    PyC_ERR_INVALID_INCOMING_PROTOCOL,
-   PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ
+   PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ,
+   PyC_ERR_INVALID_NULL_C_POINTER
 
 } FPYC_ERR;
 
@@ -54,5 +55,6 @@ typedef enum err_t {
 #define MSR_ERR_INVALID_INCOMING_PROTOCOL "\nInvalid incoming protocol\n"
 #define MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ "\nBuffer size differs from protocol size\n"
 #define MSG_ERR_INVALID_NANO_REPRESENTATIVE "\nInvalid NANO REPRESENTATIVE\n"
+#define MSG_ERR_INVALID_NULL_C_PTR "\nInvalid C NULL pointer\n"
 
 
