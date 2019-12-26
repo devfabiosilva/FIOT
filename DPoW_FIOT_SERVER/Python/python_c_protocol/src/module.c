@@ -205,7 +205,7 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    }
 
-   if ((f_last_error=valid_nano_wallet(p))) {
+   if ((f_last_error=valid_nano_wallet((const char *)p))) {
 
       PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_WALLET, f_last_error));
 
@@ -330,7 +330,7 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    }
 
-   if ((f_last_error=valid_nano_wallet(p))) {
+   if ((f_last_error=valid_nano_wallet((const char *)p))) {
 
       PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_WALLET, f_last_error));
 
@@ -455,7 +455,7 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    }
 
-   if ((f_last_error=valid_nano_wallet(p))) {
+   if ((f_last_error=valid_nano_wallet((const char *)p))) {
 
       PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_WALLET, f_last_error));
 
@@ -531,6 +531,132 @@ send_dpow_EXIT1:
 
 }
 
+static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+
+   static char *kwlist[] = {"nano", "publish", "representative", NULL};
+   char *buf_nano_addr, *pub_addr, *rep;
+   F_NANO_HW_TRANSACTION *buf;
+   size_t sz_tmp;
+   void *p;
+   PyObject *ret;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zzs", kwlist, &buf_nano_addr, &pub_addr, &rep)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
+
+      PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
+      f_last_error=PyC_ERR_BUFFER_ALLOC;
+
+      return NULL;
+
+   }
+
+   buf->hdr.command=CMD_SEND_REPRESENTATIVE_TO_CLIENT;
+   buf->hdr.raw_data_type=F_RAW_DATA_TYPE_RAW_DATA;
+
+   if (!(p=(void *)buf_nano_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata));
+
+   ret=NULL;
+
+   if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+
+      goto send_representative_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+
+      goto send_representative_EXIT1;
+
+   }
+
+   if ((f_last_error=valid_nano_wallet((const char *)p))) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_WALLET, f_last_error));
+
+      goto send_representative_EXIT1;
+
+   }
+
+   strncpy((char *)buf->rawdata, (const char *)p, MAX_STR_NANO_CHAR);
+
+   if ((sz_tmp=strnlen((const char *)rep, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+
+      goto send_representative_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+
+      goto send_representative_EXIT1;
+
+   }
+
+   if ((f_last_error=valid_nano_wallet((const char *)rep))) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_REPRESENTATIVE, f_last_error));
+
+      goto send_representative_EXIT1;
+
+   }
+
+   strncpy((char *)(buf->rawdata+MAX_STR_NANO_CHAR), (const char *)rep, MAX_STR_NANO_CHAR);
+
+   buf->hdr.raw_data_sz=2*MAX_STR_NANO_CHAR;
+
+   if (!(p=(void *)pub_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str));
+
+   if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+
+      goto send_representative_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+
+      goto send_representative_EXIT1;
+
+   }
+
+   strncpy((char *)buf->hdr.publish_str, (const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ);
+
+   if ((f_last_error=prepare_command(buf, NULL))) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_PREPARE_COMMAND, f_last_error));
+
+      goto send_representative_EXIT1;
+
+   }
+
+   self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR));
+
+   ret=Py_BuildValue("y#", (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
+      (size_t)self->sent_raw_data_sz), (Py_ssize_t)self->sent_raw_data_sz);
+
+send_representative_EXIT1:
+   memset(buf, 0, F_NANO_TRANSACTION_MAX_SZ);
+   free(buf);
+
+   return ret;
+
+}
+
 static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
@@ -565,6 +691,7 @@ static PyMethodDef fiot_methods[] = {
     {"set_frontier", (PyCFunction)set_frontier, METH_VARARGS|METH_KEYWORDS,
        "Returns data protocol with Nano cryptocurrency frontier with a given address"},
     {"send_dpow", (PyCFunction)send_dpow, METH_VARARGS|METH_KEYWORDS, "Returns data protocol with calculated hash DPoW of a given address"},
+    {"send_representative", (PyCFunction)send_representative, METH_VARARGS|METH_KEYWORDS, "Returns Nano Wallet with its representative"},
     {NULL, NULL, 0, NULL}
 
 };

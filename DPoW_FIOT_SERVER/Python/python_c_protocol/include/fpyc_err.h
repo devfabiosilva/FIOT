@@ -53,5 +53,6 @@ typedef enum err_t {
 #define MSR_ERR_RAW_DATA_SZ_IS_ZERO "\nRaw data size is ZERO\n"
 #define MSR_ERR_INVALID_INCOMING_PROTOCOL "\nInvalid incoming protocol\n"
 #define MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ "\nBuffer size differs from protocol size\n"
+#define MSG_ERR_INVALID_NANO_REPRESENTATIVE "\nInvalid NANO REPRESENTATIVE\n"
 
 

@@ -25,7 +25,6 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // frontier: frontier (raw 32 bytes) !!! NOT STRING
 //}
 //
-
 #define CMD_SEND_DPOW_TO_CLIENT (uint32_t)(3<<1)|1
 //pub_add: Publish addrs
 //raw_data{
@@ -34,8 +33,13 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // PoW: Calculated proof of work (raw 8 bytes) !!! NOT STRING
 //}
 //
-
-
+#define CMD_SEND_REPRESENTATIVE_TO_CLIENT (uint32_t)(4<<1)|1
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano wallet (string)
+// representative: representative (string)
+//}
+//
 /////////////////////////////////
 
 // Client CMD's
@@ -59,8 +63,14 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // SIGNED TRANSACTION FEE: JSON string
 //}
 //
-
-#define LAST_COMMAND CMD_SEND_DPOW_TO_CLIENT
+#define CMD_GET_REPRESENTATIVE (uint32_t)(CMD_SEND_REPRESENTATIVE_TO_CLIENT^0x00000001)
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano wallet (string)
+// representative: representative (string)
+//}
+//
+#define LAST_COMMAND CMD_SEND_REPRESENTATIVE_TO_CLIENT
 
 ///////////////////////////////
 
