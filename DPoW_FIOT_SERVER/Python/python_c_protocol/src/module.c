@@ -669,7 +669,7 @@ static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
       return NULL;
 
    } else if (sz_tmp==0)
-      return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, NULL, 0);
+      return Py_BuildValue("y#", NULL, 0);
 
    if ((f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->sent_raw_data, 0))) {
 
@@ -679,7 +679,7 @@ static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
 
    }
 
-   return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, (const void *)self->sent_raw_data, (Py_ssize_t)sz_tmp);
+   return Py_BuildValue("y#", (const void *)self->sent_raw_data, (Py_ssize_t)self->sent_raw_data_sz);
 
 }
 
