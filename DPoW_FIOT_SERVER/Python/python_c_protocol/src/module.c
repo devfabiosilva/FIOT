@@ -179,6 +179,44 @@ static PyObject *getincomingmessage(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
 
 }
 
+static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   const char *s=NULL;
+
+   if (self->raw_data_sz>F_NANO_TRANSACTION_MAX_SZ) {
+
+      f_last_error=PyC_ERR_MEM_OVFL;
+
+      goto get_nano_addr_from_incoming_data_EXIT;
+
+   } else if (self->raw_data_sz==0) {
+
+      f_last_error=PyC_ERR_RAW_DATA_SZ_ZERO;
+
+      goto get_nano_addr_from_incoming_data_EXIT;
+
+   }
+
+   if (((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR,
+      raw_data_sz)))+(uint32_t)sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)self->raw_data_sz) {
+
+      f_last_error=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ;
+
+      goto get_nano_addr_from_incoming_data_EXIT;
+
+   }
+
+   if ((f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->raw_data, 1)))
+      goto get_nano_addr_from_incoming_data_EXIT;
+
+   if ((f_last_error=valid_nano_wallet(s=(const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)))))
+      s=NULL;
+
+get_nano_addr_from_incoming_data_EXIT:
+   return Py_BuildValue("s", s);
+
+}
 //set
 static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
 {
@@ -718,6 +756,8 @@ static PyMethodDef fiot_methods[] = {
     {"send_dpow", (PyCFunction)send_dpow, METH_VARARGS|METH_KEYWORDS, "Returns data protocol with calculated hash DPoW of a given address"},
     {"send_representative", (PyCFunction)send_representative, METH_VARARGS|METH_KEYWORDS, "Returns Nano Wallet with its representative"},
     {"getdataprotocol", (PyCFunction)getincomingmessage, METH_VARARGS|METH_KEYWORDS, "Check and process protocol if success"},
+    {"get_nano_addr_from_incoming_data", (PyCFunction)get_nano_addr_from_incoming_data,
+       METH_NOARGS, "Returns Nano address in incoming client data, if exists."},
     {NULL, NULL, 0, NULL}
 
 };
