@@ -11,21 +11,21 @@
 FPYC_ERR prepare_command(F_NANO_HW_TRANSACTION *, void *);
 FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 
-#define CMD_SEND_RAW_BALANCE_TO_CLIENT (uint32_t)(1<<1)|1
+#define CMD_SEND_RAW_BALANCE_TO_CLIENT (uint32_t)((1<<1)|1)
 //pub_add: Publish addrs
 //raw_data{
 // nano_wallet: nano_wallet
 // balance: balance
 //}
 //
-#define CMD_SEND_FRONTIER_TO_CLIENT (uint32_t)(2<<1)|1
+#define CMD_SEND_FRONTIER_TO_CLIENT (uint32_t)((2<<1)|1)
 //pub_add: Publish addrs
 //raw_data{
 // nano_wallet: nano_wallet (string)
 // frontier: frontier (raw 32 bytes) !!! NOT STRING
 //}
 //
-#define CMD_SEND_DPOW_TO_CLIENT (uint32_t)(3<<1)|1
+#define CMD_SEND_DPOW_TO_CLIENT (uint32_t)((3<<1)|1)
 //pub_add: Publish addrs
 //raw_data{
 // nano_wallet: nano wallet (string)
@@ -33,7 +33,7 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // PoW: Calculated proof of work (raw 8 bytes) !!! NOT STRING
 //}
 //
-#define CMD_SEND_REPRESENTATIVE_TO_CLIENT (uint32_t)(4<<1)|1
+#define CMD_SEND_REPRESENTATIVE_TO_CLIENT (uint32_t)((4<<1)|1)
 //pub_add: Publish addrs
 //raw_data{
 // nano_wallet: nano wallet (string)

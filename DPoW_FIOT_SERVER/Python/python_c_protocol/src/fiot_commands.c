@@ -98,7 +98,7 @@ uint32_t crc32_init(unsigned char *p, size_t len, uint32_t crcinit)
 FPYC_ERR gen_rand_no_entropy(uint8_t *output, size_t output_len)
 {
    FILE *f;
-   int err;
+   FPYC_ERR err;
 
    if (!(f=fopen("/dev/urandom", "r")))
       return PyC_ERR_CANT_OPEN_FILE;
@@ -116,7 +116,7 @@ FPYC_ERR gen_rand_no_entropy(uint8_t *output, size_t output_len)
 FPYC_ERR prepare_command(F_NANO_HW_TRANSACTION *buffer, void *raw_data)
 {
 
-   int err;
+   FPYC_ERR err;
    size_t sz_tmp;
    uint32_t crc32_tmp;
 
@@ -149,7 +149,7 @@ FPYC_ERR prepare_command(F_NANO_HW_TRANSACTION *buffer, void *raw_data)
 
 FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *buffer, int is_incoming)
 {
-   int err;
+   FPYC_ERR err;
    uint32_t crc32_tmp;
 
    if (buffer->hdr.preamble^F_PREAMBLE)
@@ -163,17 +163,16 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *buffer, int is_incoming)
    } else if (is_incoming==0)
       return PyC_ERR_IS_NOT_FROM_THIS_SERVER_COMMAND;
 
-
    if ((buffer->hdr.command)>(LAST_COMMAND))
       return PyC_ERR_INVALID_INCOMING_COMMAND;
 
    if (buffer->hdr.raw_data_sz>F_NANO_TRANSACTION_RAW_DATA_SZ_MAX)
       return PyC_ERR_INCOMING_COMMAND_RAW_DATA_SZ;
 
-   err=PyC_ERR_OK;
-
    crc32_tmp=buffer->hdr.crc32;
    buffer->hdr.crc32=0;
+
+   err=PyC_ERR_OK;
 
    if (crc32_init((unsigned char *)buffer, sizeof(F_NANO_TRANSACTION_HDR)+buffer->hdr.raw_data_sz, 0)^crc32_tmp)
       err=PyC_ERR_INCOMING_INVALID_CHKSUM;

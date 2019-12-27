@@ -65,6 +65,36 @@ static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, siz
    return PyC_ERR_OK;
 
 }
+//is_incoming ->0 for self server or non zero for client
+static FPYC_ERR verify_incoming_outcoming_raw_data_util(FIOT_RAW_DATA_OBJ *self, int is_incoming)
+{
+
+   uint32_t sz_tmp;
+   uint8_t *p;
+
+   if (is_incoming) {
+
+      sz_tmp=self->raw_data_sz;
+      p=self->raw_data;
+
+   } else {
+
+      sz_tmp=self->sent_raw_data_sz;
+      p=self->sent_raw_data;
+
+   }
+
+   if (sz_tmp>F_NANO_TRANSACTION_MAX_SZ)
+      return PyC_ERR_MEM_OVFL;
+   else if (sz_tmp==0)
+      return PyC_ERR_RAW_DATA_SZ_ZERO;
+
+   if (((*(uint32_t *)(p+offsetof(F_NANO_TRANSACTION_HDR, raw_data_sz)))+(uint32_t)sizeof(F_NANO_TRANSACTION_HDR))^sz_tmp)
+      return PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ;
+
+   return verify_protocol((F_NANO_HW_TRANSACTION *)p, is_incoming);
+
+}
 //-util
 
 static PyObject *about(PyObject *self, PyObject *Py_UNUSED(ignored))
@@ -182,41 +212,41 @@ static PyObject *getincomingmessage(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
 static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   const char *s=NULL;
+   const char *s;
 
-   if (self->raw_data_sz>F_NANO_TRANSACTION_MAX_SZ) {
-
-      f_last_error=PyC_ERR_MEM_OVFL;
-
-      goto get_nano_addr_from_incoming_data_EXIT;
-
-   } else if (self->raw_data_sz==0) {
-
-      f_last_error=PyC_ERR_RAW_DATA_SZ_ZERO;
-
-      goto get_nano_addr_from_incoming_data_EXIT;
-
-   }
-
-   if (((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR,
-      raw_data_sz)))+(uint32_t)sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)self->raw_data_sz) {
-
-      f_last_error=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ;
-
-      goto get_nano_addr_from_incoming_data_EXIT;
-
-   }
-
-   if ((f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->raw_data, 1)))
-      goto get_nano_addr_from_incoming_data_EXIT;
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1)))
+      return Py_BuildValue("s", NULL);
 
    if ((f_last_error=valid_nano_wallet(s=(const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)))))
       s=NULL;
 
-get_nano_addr_from_incoming_data_EXIT:
    return Py_BuildValue("s", s);
 
 }
+
+static PyObject *get_representative_addr_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   const char *s=NULL;
+
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
+      return Py_BuildValue("s", s);
+
+   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_REPRESENTATIVE_TO_CLIENT) {
+
+      f_last_error=PyC_ERR_UNABLE_GET_REP;
+
+      return Py_BuildValue("s", s);
+
+   }
+
+   if ((f_last_error=valid_nano_wallet(s=(const char *)(self->sent_raw_data+MAX_STR_NANO_CHAR+offsetof(F_NANO_HW_TRANSACTION, rawdata)))))
+      s=NULL;
+
+   return Py_BuildValue("s", s);
+
+}
+
 //set
 static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
 {
@@ -758,6 +788,8 @@ static PyMethodDef fiot_methods[] = {
     {"getdataprotocol", (PyCFunction)getincomingmessage, METH_VARARGS|METH_KEYWORDS, "Check and process protocol if success"},
     {"get_nano_addr_from_incoming_data", (PyCFunction)get_nano_addr_from_incoming_data,
        METH_NOARGS, "Returns Nano address in incoming client data, if exists."},
+    {"get_representative_addr", (PyCFunction)get_representative_addr_from_sending_data,
+       METH_NOARGS, "Returns Nano representative address in sending for client data, if exists."},
     {NULL, NULL, 0, NULL}
 
 };
@@ -786,7 +818,7 @@ static PyTypeObject FIOT_RAW_DATA_OBJ_type = {
 
 static PyModuleDef FIOT_RAW_DATA_OBJmodule = {
     PyModuleDef_HEAD_INIT,
-    .m_name="Fenix-IoT DPoW Nano crytptocurrency Protocol module for Python 3",
+    .m_name="FIOT_PROTOCOL",
     .m_doc="Fenix-IoT DPoW Nano cryptocurrency protocol modules for Python 3 using C library to access low level data",
     .m_size=-1,
 };
