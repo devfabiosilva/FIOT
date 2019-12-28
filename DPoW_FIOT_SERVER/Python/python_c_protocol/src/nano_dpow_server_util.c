@@ -230,10 +230,10 @@ int valid_raw_balance(const char *balance)
    size_t balance_sz;
 
    if ((balance_sz=strnlen(balance, MAX_RAW_STR_BALANCE_SZ))==MAX_RAW_STR_BALANCE_SZ)
-      return 1;
+      return 2030;
 
    if (balance_sz==0)
-      return 2;
+      return 2031;
 
    err=0;
 
@@ -242,7 +242,7 @@ int valid_raw_balance(const char *balance)
       if (isdigit((int)balance[--balance_sz]))
          continue;
 
-      err=3;
+      err=2032;
 
       break;
 
@@ -265,10 +265,10 @@ int f_str_to_hex(uint8_t *hex_stream, const char *str)
       ch=str[i];
 
       if (ch>'f')
-         return 11;
+         return 311;
 
       if (ch<'0')
-         return 12;
+         return 312;
 
       ch-='0';
 
@@ -276,25 +276,44 @@ int f_str_to_hex(uint8_t *hex_stream, const char *str)
          if (ch&0x30) {
 
             if ((ch&0x30)==0x20)
-               return 14;
+               return 314;
 
             ch&=0x0F;
 
             ch+=9;
 
             if (ch<10)
-               return 15;
+               return 315;
             if (ch>15)
-               return 16;
+               return 316;
 
          } else
-            return 13;
+            return 313;
       }
 
       (i&1)?(hex_stream[i>>1]|=(uint8_t)ch):(hex_stream[i>>1]=(uint8_t)(ch<<4));
    }
 
    return 0;
+
+}
+
+// No sanity err check. res must be at least 2*buf_sz+1 in size
+char *fhex2strv2(char *res, const void *buf, size_t buf_sz, int is_uppercase)
+{
+
+   char *p=res;
+   const char *f[]={"%02x","%02X"};
+   const char *q=f[is_uppercase&1];
+
+   for (;buf_sz--;) {
+
+      sprintf(p, q, (unsigned char)*((unsigned char *)buf++));
+      p+=2;
+
+   }
+
+   return res;
 
 }
 

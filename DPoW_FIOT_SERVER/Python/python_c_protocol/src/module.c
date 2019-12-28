@@ -247,6 +247,102 @@ static PyObject *get_representative_addr_from_sending_data(FIOT_RAW_DATA_OBJ *se
 
 }
 
+static PyObject *get_raw_balance_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   const char *s=NULL;
+
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
+      return Py_BuildValue("s", s);
+
+   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_RAW_BALANCE_TO_CLIENT) {
+
+      f_last_error=PyC_ERR_UNABLE_GET_RAW_BALANCE;
+
+      return Py_BuildValue("s", s);
+
+   }
+
+   if ((f_last_error=valid_raw_balance(s=(const char *)(self->sent_raw_data+MAX_STR_NANO_CHAR+offsetof(F_NANO_HW_TRANSACTION, rawdata)))))
+      s=NULL;
+
+   return Py_BuildValue("s", s);
+
+}
+
+static PyObject *get_frontier_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   char *s=NULL;
+   PyObject *ret;
+
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
+      return Py_BuildValue("s", (const char *)s);
+
+   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_FRONTIER_TO_CLIENT) {
+
+      f_last_error=PyC_ERR_UNABLE_GET_RAW_FRONTIER;
+
+      return Py_BuildValue("s", (const char *)s);
+
+   }
+
+   if (!(s=malloc(2*MAX_RAW_DATA_FRONTIER+1))) {
+
+      f_last_error=PyC_ERR_BUFFER_ALLOC;
+
+      return Py_BuildValue("s", NULL);
+
+   }
+
+   fhex2strv2(s, (const void *)(self->sent_raw_data+MAX_STR_NANO_CHAR+offsetof(F_NANO_HW_TRANSACTION, rawdata)), MAX_RAW_DATA_FRONTIER, 1);
+
+   ret=Py_BuildValue("s", (const char *)s);
+
+   memset(s, 0, 2*MAX_RAW_DATA_FRONTIER+1);
+   free(s);
+
+   return ret;
+
+}
+
+static PyObject *get_dpow_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   char *s=NULL;
+   PyObject *ret;
+
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
+      return Py_BuildValue("s", (const char *)s);
+
+   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_DPOW_TO_CLIENT) {
+
+      f_last_error=PyC_ERR_UNABLE_GET_DPOW;
+
+      return Py_BuildValue("s", (const char *)s);
+
+   }
+
+   if (!(s=malloc(20))) {
+
+      f_last_error=PyC_ERR_BUFFER_ALLOC;
+
+      return Py_BuildValue("s", NULL);
+
+   }
+
+   sprintf(s, "%016lx", (unsigned long int)*((uint64_t *)(self->sent_raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+
+      MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH)));
+
+   ret=Py_BuildValue("s", (const char *)s);
+
+   memset(s, 0, 20);
+   free(s);
+
+   return ret;
+
+}
+
 //set
 static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
 {
@@ -790,6 +886,12 @@ static PyMethodDef fiot_methods[] = {
        METH_NOARGS, "Returns Nano address in incoming client data, if exists."},
     {"get_representative_addr", (PyCFunction)get_representative_addr_from_sending_data,
        METH_NOARGS, "Returns Nano representative address in sending for client data, if exists."},
+    {"get_raw_balance", (PyCFunction)get_raw_balance_value_from_sending_data, METH_NOARGS,
+       "Returns Nano raw balance in sending for client data, if exists."},
+    {"get_frontier", (PyCFunction)get_frontier_value_from_sending_data, METH_NOARGS,
+       "Returns Nano frontier in sending for client data, if exists."},
+    {"get_calculated_dpow", (PyCFunction)get_dpow_value_from_sending_data, METH_NOARGS,
+       "Returns Nano DPoW value in sending for client data, if exists."},
     {NULL, NULL, 0, NULL}
 
 };
@@ -805,7 +907,7 @@ static PyMemberDef FIOT_RAW_DATA_OBJ_members[] = {
 static PyTypeObject FIOT_RAW_DATA_OBJ_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name="FIOT_RAW_DATA_OBJ",
-    .tp_doc="FIOT_RAW_DATA_OBJ object to store and process raw data I/O",
+    .tp_doc="FIOT_RAW_DATA_OBJ object to store and process raw data I/O for Fenix-IoT (FIOT) gateway hardware",
     .tp_basicsize=sizeof(FIOT_RAW_DATA_OBJ),
     .tp_itemsize=0,
     .tp_flags=Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,

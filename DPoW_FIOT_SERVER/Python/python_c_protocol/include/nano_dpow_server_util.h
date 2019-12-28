@@ -24,4 +24,5 @@
 int valid_nano_wallet(const char *);
 int valid_raw_balance(const char *);
 int f_str_to_hex(uint8_t *, const char *);
+char *fhex2strv2(char *, const void *, size_t, int);
 
