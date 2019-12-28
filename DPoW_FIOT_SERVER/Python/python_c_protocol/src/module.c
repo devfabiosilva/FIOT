@@ -295,9 +295,8 @@ static PyObject *get_frontier_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, P
 
    }
 
-   fhex2strv2(s, (const void *)(self->sent_raw_data+MAX_STR_NANO_CHAR+offsetof(F_NANO_HW_TRANSACTION, rawdata)), MAX_RAW_DATA_FRONTIER, 1);
-
-   ret=Py_BuildValue("s", (const char *)s);
+   ret=Py_BuildValue("s", (const char *)fhex2strv2(s, (const void *)(self->sent_raw_data+MAX_STR_NANO_CHAR+
+      offsetof(F_NANO_HW_TRANSACTION, rawdata)), MAX_RAW_DATA_FRONTIER, 1));
 
    memset(s, 0, 2*MAX_RAW_DATA_FRONTIER+1);
    free(s);
@@ -340,6 +339,106 @@ static PyObject *get_dpow_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObj
    free(s);
 
    return ret;
+
+}
+
+static PyObject *get_calculated_dpow_hash_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   char *s=NULL;
+   PyObject *ret;
+
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
+      return Py_BuildValue("s", (const char *)s);
+
+   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_DPOW_TO_CLIENT) {
+
+      f_last_error=PyC_ERR_UNABLE_GET_CALCULATED_DPOW_HASH;
+
+      return Py_BuildValue("s", (const char *)s);
+
+   }
+
+   if (!(s=malloc(2*MAX_RAW_DATA_HASH+1))) {
+
+      f_last_error=PyC_ERR_BUFFER_ALLOC;
+
+      return Py_BuildValue("s", NULL);
+
+   }
+
+   ret=Py_BuildValue("s", (const char *)fhex2strv2(s, (const void *)(self->sent_raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+
+      MAX_STR_NANO_CHAR), MAX_RAW_DATA_HASH, 1));
+
+   memset(s, 0, 2*MAX_RAW_DATA_HASH+1);
+   free(s);
+
+   return ret;
+
+}
+
+static PyObject *get_dpow_hash_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   char *s=NULL;
+   PyObject *ret;
+
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1)))
+      return Py_BuildValue("s", (const char *)s);
+
+   if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_GET_DPOW) {
+
+      f_last_error=PyC_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT;
+
+      return Py_BuildValue("s", (const char *)s);
+
+   }
+
+   if (!(s=malloc(2*MAX_RAW_DATA_HASH+1))) {
+
+      f_last_error=PyC_ERR_BUFFER_ALLOC;
+
+      return Py_BuildValue("s", NULL);
+
+   }
+
+   ret=Py_BuildValue("s", (const char *)fhex2strv2(s, (const void *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+
+      MAX_STR_NANO_CHAR), MAX_RAW_DATA_HASH, 1));
+
+   memset(s, 0, 2*MAX_RAW_DATA_HASH+1);
+   free(s);
+
+   return ret;
+
+}
+
+#define JSON_TRANSACTION_FEE_BUF_SZ (size_t)(F_NANO_TRANSACTION_RAW_DATA_SZ_MAX-(MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH))
+static PyObject *get_signed_transaction_fee_json(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   const char *s=NULL;
+   PyObject *ret;
+
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1)))
+      return Py_BuildValue("s", s);
+
+   if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_GET_DPOW) {
+
+      f_last_error=PyC_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE;
+
+      return Py_BuildValue("s", s);
+
+   }
+
+   if ((strnlen(s=((const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH)),
+      JSON_TRANSACTION_FEE_BUF_SZ))==JSON_TRANSACTION_FEE_BUF_SZ) {
+
+      s=NULL;
+      f_last_error=PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL;
+
+   }
+
+   return Py_BuildValue("s", s);
 
 }
 
@@ -892,6 +991,12 @@ static PyMethodDef fiot_methods[] = {
        "Returns Nano frontier in sending for client data, if exists."},
     {"get_calculated_dpow", (PyCFunction)get_dpow_value_from_sending_data, METH_NOARGS,
        "Returns Nano DPoW value in sending for client data, if exists."},
+    {"get_calculated_dpow_hash", (PyCFunction)get_calculated_dpow_hash_from_sending_data, METH_NOARGS,
+       "Returns Nano Wallet calculated HASH value in sending for client data, if exists."},
+    {"get_dpow_hash_from_client", (PyCFunction)get_dpow_hash_from_incoming_data, METH_NOARGS,
+       "Returns Nano Wallet HASH value to be calculated in client data, if exists."},
+    {"get_signed_trans_fee", (PyCFunction)get_signed_transaction_fee_json, METH_NOARGS,
+       "Returns Nano Wallet signed transaction fee string JSON value in client data, if exists."},
     {NULL, NULL, 0, NULL}
 
 };
