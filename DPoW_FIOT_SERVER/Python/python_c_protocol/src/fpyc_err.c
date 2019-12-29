@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 
-char *fpyc_err_msg(char *msg, int err_msg)
+char *fpyc_err_msg(const char *msg, int err_msg)
 {
 
    static char err_message[768];

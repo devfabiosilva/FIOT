@@ -7,7 +7,7 @@
 
 //Sexta 20 Dez 2019 21:15:30 -03
 
-char *fpyc_err_msg(char *, int);
+char *fpyc_err_msg(const char *, int);
 
 typedef enum err_t {
    PyC_ERR_OK=0,
@@ -45,7 +45,11 @@ typedef enum err_t {
    PyC_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT,
    PyC_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE,
    PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL,
-   PyC_ERR_ADD_CONST_INI
+   PyC_ERR_ADD_CONST_INI,
+   PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL,
+   PyC_ERR_OBJ,
+   PyC_ERR_DELETE_ATTRIBUTE_ERR,
+   PyC_ERR_DELETE_ATTRIBUTE_MSG
 
 } FPYC_ERR;
 
@@ -66,5 +70,6 @@ typedef enum err_t {
 #define MSG_ERR_INVALID_NANO_REPRESENTATIVE "\nInvalid NANO REPRESENTATIVE\n"
 #define MSG_ERR_INVALID_NULL_C_PTR "\nInvalid C NULL pointer\n"
 #define MSG_ERR_CANT_ADD_CONSTANT_INITIALIZATION "\nError in \"PyModule_AddIntConstant\" function\n"
-
-
+#define MSG_ERR_OBJ_NOT_CALLABLE "\nObject is not callable\n"
+#define MSG_ERR_OBJ "\nObject should not be callable\n"
+#define MSG_ERR_DEL_ATTR "\nCan't delete attribute in \"f_set_error_util\"\n"

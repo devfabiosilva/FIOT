@@ -21,12 +21,73 @@ typedef struct {
     int sent_raw_data_sz;
     unsigned char raw_data[F_NANO_TRANSACTION_MAX_SZ];
     unsigned char sent_raw_data[F_NANO_TRANSACTION_MAX_SZ];
+    PyObject *fc_onerror;
+//    PyObject *callable;
 } FIOT_RAW_DATA_OBJ;
 
 //util
-static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, size_t data_sz)
+static void f_call_onerror(FIOT_RAW_DATA_OBJ *self)
 {
 
+   if (self->fc_onerror) {
+   // To be implemented
+   }
+
+}
+// !!! for doc
+// returns 1 if is callable, 0 not callable, -1 (internal raise exception) (fabio)
+static int f_set_error_util(FIOT_RAW_DATA_OBJ *self, PyObject *type, const char *error_msg, int err) {
+
+   PyObject *tmp;
+   const char *m=(const char *)fpyc_err_msg(error_msg, err);
+
+   if (self->fc_onerror) {
+
+      if (!(tmp=Py_BuildValue("s", m)))
+         return -1;
+
+      if (PyObject_SetAttrString(self->fc_onerror, "msg", tmp))
+         return -1;
+
+      if (!(tmp=Py_BuildValue("i", err)))
+         return -1;
+
+      if (PyObject_SetAttrString(self->fc_onerror, "err", tmp))
+         return -1;
+
+      if (!(PyObject_CallFunctionObjArgs(self->fc_onerror, self->fc_onerror, NULL)))
+         return -1;
+
+      if (PyObject_DelAttrString(self->fc_onerror, "err")) {
+
+         m=(const char *)fpyc_err_msg(MSG_ERR_DEL_ATTR, f_last_error=PyC_ERR_DELETE_ATTRIBUTE_ERR);
+
+         goto f_set_error_util_EXIT;
+
+      }
+
+      if (PyObject_DelAttrString(self->fc_onerror, "msg")) {
+
+         m=(const char *)fpyc_err_msg(MSG_ERR_DEL_ATTR, f_last_error=PyC_ERR_DELETE_ATTRIBUTE_MSG);
+
+         goto f_set_error_util_EXIT;
+
+      }
+
+      return 1;
+
+   }
+
+f_set_error_util_EXIT:
+   PyErr_SetString(type, m);
+
+   return 0;
+
+}
+
+static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, size_t data_sz)
+{
+/*
    FPYC_ERR err;
 
    if (data_sz>F_NANO_TRANSACTION_MAX_SZ) {
@@ -54,6 +115,44 @@ static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, siz
    if ((((F_NANO_HW_TRANSACTION *)data)->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)data_sz) {
 
       PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ, err=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ));
+
+      return err;
+
+   }
+
+   self->raw_data_sz=data_sz;
+   memcpy(self->raw_data, data, data_sz);
+
+   return PyC_ERR_OK;
+*/
+
+   FPYC_ERR err;
+
+   if (data_sz>F_NANO_TRANSACTION_MAX_SZ) {
+
+      f_set_error_util(self, PyExc_MemoryError, MSG_ERR_RAW_DATA_SZ_OVFL, err=PyC_ERR_MEM_OVFL);
+
+      return err;
+   
+   } else if (data_sz==0) {
+
+      f_set_error_util(self, PyExc_ValueError, MSR_ERR_RAW_DATA_SZ_IS_ZERO, err=PyC_ERR_RAW_DATA_SZ_ZERO);
+
+      return err;
+
+   }
+
+   if ((err=verify_protocol((F_NANO_HW_TRANSACTION *)data, 1))) {
+
+      f_set_error_util(self, PyExc_ValueError, MSR_ERR_INVALID_INCOMING_PROTOCOL, err);
+
+      return err;
+
+   }
+
+   if ((((F_NANO_HW_TRANSACTION *)data)->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)data_sz) {
+
+      f_set_error_util(self, PyExc_ValueError, MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ, err=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ);
 
       return err;
 
@@ -102,12 +201,6 @@ static PyObject *about(PyObject *self, PyObject *Py_UNUSED(ignored))
    return PyUnicode_DecodeFSDefault((const char *)ABOUT_MSG);
 }
 
-
-static PyMethodDef mMethods[] = {
-    {"about", about, METH_NOARGS, "About"},
-    {NULL, NULL, 0, NULL}
-};
-
 static void fiot_raw_data_obj_dealloc(FIOT_RAW_DATA_OBJ *self)
 {
    Py_TYPE(self)->tp_free((PyObject *)self);
@@ -125,11 +218,13 @@ static PyObject *fiot_raw_data_obj_new(PyTypeObject *type, PyObject *args, PyObj
       self->raw_data_sz=0;
       self->sent_raw_data_sz=0;
       memset(self->raw_data, 0, 2*F_NANO_TRANSACTION_MAX_SZ);
+      self->fc_onerror=NULL;
+//      self->callable=NULL;
 
    } else {
 
-      PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
       f_last_error=PyC_ERR_BUFFER_ALLOC;
+      PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
 
    }
 
@@ -196,16 +291,19 @@ static PyObject *getincomingmessage(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
 
    if (!buf) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NULL_C_PTR, f_last_error=PyC_ERR_INVALID_NULL_C_POINTER));
+      //PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NULL_C_PTR, f_last_error=PyC_ERR_INVALID_NULL_C_POINTER));
+      if (f_set_error_util(self, PyExc_Exception, MSG_ERR_INVALID_NULL_C_PTR, f_last_error=PyC_ERR_INVALID_NULL_C_POINTER)>0)
+         return Py_None;
 
       return NULL;
 
    }
 
    if ((f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)))
-      return NULL;
+      if (!(self->fc_onerror))
+         return NULL;
 
-   return PyLong_FromLong((long int)PyC_ERR_OK);;
+   return PyLong_FromLong((long int)f_last_error);
 
 }
 
@@ -215,7 +313,7 @@ static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
    const char *s;
 
    if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1)))
-      return Py_BuildValue("s", NULL);
+      return Py_None;//Py_BuildValue("s", NULL);
 
    if ((f_last_error=valid_nano_wallet(s=(const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)))))
       s=NULL;
@@ -227,16 +325,16 @@ static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
 static PyObject *get_representative_addr_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   const char *s=NULL;
+   const char *s;//=NULL;
 
    if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
-      return Py_BuildValue("s", s);
+      return Py_None;//Py_BuildValue("s", s);
 
    if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_REPRESENTATIVE_TO_CLIENT) {
 
       f_last_error=PyC_ERR_UNABLE_GET_REP;
 
-      return Py_BuildValue("s", s);
+      return Py_None;//Py_BuildValue("s", s);
 
    }
 
@@ -970,6 +1068,74 @@ static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
 
 }
 
+/*
+static PyObject *set_callable(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+   static char *kwlist[] = {"func", NULL};
+   PyObject *fobj;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &fobj)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   if (!PyCallable_Check(fobj)) {
+
+      if (f_set_error_util(self, PyExc_Exception, MSG_ERR_OBJ_NOT_CALLABLE, f_last_error=PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL)>0)
+         return Py_BuildValue("s", NULL);
+      //PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_OBJ_NOT_CALLABLE, f_last_error=PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL));
+
+      return NULL;
+
+   }
+
+   self->callable=fobj;
+
+   return PyLong_FromLong((long int)(f_last_error=PyC_ERR_OK));
+
+}
+*/
+
+static PyObject *set_onerror(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+   static char *kwlist[] = {"func", NULL};
+   PyObject *fobj;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &fobj)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   if (PyObject_TypeCheck(self->fc_onerror=fobj, (PyTypeObject *)PyObject_Type(Py_None))) {
+
+      self->fc_onerror=NULL;
+
+      goto set_onerror_EXIT;
+
+   }
+
+   if (!PyCallable_Check(fobj)) {
+
+      self->fc_onerror=NULL;
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_OBJ_NOT_CALLABLE, f_last_error=PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL));
+
+      return NULL;
+
+   }
+
+set_onerror_EXIT:
+   return PyLong_FromLong((long int)(f_last_error=PyC_ERR_OK));
+
+}
 
 static F_COMMAND_CONSTANT FIOT_COMMAND[] = {
 
@@ -993,6 +1159,11 @@ static F_COMMAND_CONSTANT FIOT_COMMAND[] = {
 };
 
 #define FIOT_COMMAND_MAX_INDEX (size_t)(sizeof(FIOT_COMMAND)/sizeof(F_COMMAND_CONSTANT))
+
+static PyMethodDef mMethods[] = {
+    {"about", about, METH_NOARGS, "About"},
+    {NULL, NULL, 0, NULL}
+};
 
 static PyMethodDef fiot_methods[] = {
 
@@ -1020,6 +1191,8 @@ static PyMethodDef fiot_methods[] = {
        "Returns Nano Wallet HASH value to be calculated in client data, if exists."},
     {"get_signed_trans_fee", (PyCFunction)get_signed_transaction_fee_json, METH_NOARGS,
        "Returns Nano Wallet signed transaction fee string JSON value in client data, if exists."},
+    {"onerror", (PyCFunction)set_onerror, METH_VARARGS|METH_KEYWORDS,
+       "On error event. Set a callable function here"},
     {NULL, NULL, 0, NULL}
 
 };
@@ -1029,6 +1202,7 @@ static PyMemberDef FIOT_RAW_DATA_OBJ_members[] = {
     {"sent_raw_data_sz", T_INT, offsetof(FIOT_RAW_DATA_OBJ, sent_raw_data_sz), 0, "Sent data size"},
     {"raw_data", T_UBYTE, offsetof(FIOT_RAW_DATA_OBJ, raw_data), 0, "incoming raw data"},
     {"sent_raw_data", T_UBYTE, offsetof(FIOT_RAW_DATA_OBJ, sent_raw_data), 0, "sent raw data"},
+//    {"onerror", T_OBJECT, offsetof(FIOT_RAW_DATA_OBJ, fc_onerror), 0, "FIOT event \"on_error\""}, // It will be a function ok?
     {NULL, 0, 0, 0, NULL}
 };
 
