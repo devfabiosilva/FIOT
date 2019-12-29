@@ -76,4 +76,8 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 
 #define MSG_ERR_PREPARE_COMMAND "\nError in prepare command function\n"
 
+typedef struct f_command_constant_t {
+   const char *name;
+   long int value;
+} F_COMMAND_CONSTANT;
 

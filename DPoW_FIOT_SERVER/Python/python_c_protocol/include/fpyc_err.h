@@ -44,7 +44,8 @@ typedef enum err_t {
    PyC_ERR_UNABLE_GET_CALCULATED_DPOW_HASH,
    PyC_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT,
    PyC_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE,
-   PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL
+   PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL,
+   PyC_ERR_ADD_CONST_INI
 
 } FPYC_ERR;
 
@@ -64,5 +65,6 @@ typedef enum err_t {
 #define MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ "\nBuffer size differs from protocol size\n"
 #define MSG_ERR_INVALID_NANO_REPRESENTATIVE "\nInvalid NANO REPRESENTATIVE\n"
 #define MSG_ERR_INVALID_NULL_C_PTR "\nInvalid C NULL pointer\n"
+#define MSG_ERR_CANT_ADD_CONSTANT_INITIALIZATION "\nError in \"PyModule_AddIntConstant\" function\n"
 
 

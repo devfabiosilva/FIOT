@@ -417,7 +417,6 @@ static PyObject *get_signed_transaction_fee_json(FIOT_RAW_DATA_OBJ *self, PyObje
 {
 
    const char *s=NULL;
-   PyObject *ret;
 
    if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1)))
       return Py_BuildValue("s", s);
@@ -971,6 +970,30 @@ static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
 
 }
 
+
+static F_COMMAND_CONSTANT FIOT_COMMAND[] = {
+
+   {"CMD_SEND_RAW_BALANCE_TO_CLIENT",
+      (long int)CMD_SEND_RAW_BALANCE_TO_CLIENT},
+   {"CMD_SEND_FRONTIER_TO_CLIENT",
+      (long int)CMD_SEND_FRONTIER_TO_CLIENT},
+   {"CMD_SEND_DPOW_TO_CLIENT",
+      (long int)CMD_SEND_DPOW_TO_CLIENT},
+   {"CMD_SEND_REPRESENTATIVE_TO_CLIENT",
+      (long int)CMD_SEND_REPRESENTATIVE_TO_CLIENT},
+   {"CMD_GET_RAW_BALANCE",
+      (long int)CMD_GET_RAW_BALANCE},
+   {"CMD_GET_FRONTIER",
+      (long int)CMD_GET_FRONTIER},
+   {"CMD_GET_DPOW",
+      (long int)CMD_GET_DPOW},
+   {"CMD_GET_REPRESENTATIVE",
+      (long int)CMD_GET_REPRESENTATIVE}
+
+};
+
+#define FIOT_COMMAND_MAX_INDEX (size_t)(sizeof(FIOT_COMMAND)/sizeof(F_COMMAND_CONSTANT))
+
 static PyMethodDef fiot_methods[] = {
 
     {"getlasterror", (PyCFunction)fgetlasterror, METH_NOARGS, "Returns last error of Fenix-IoT protocol"},
@@ -1035,6 +1058,8 @@ PyMODINIT_FUNC PyInit_fiot(void)
 {
 
    PyObject *m;
+   size_t i;
+
    if (PyType_Ready(&FIOT_RAW_DATA_OBJ_type) < 0) {
 
       PyErr_SetString(PyExc_Exception, "\n\"FIOT_RAW_DATA_OBJ_type\" is not available\n");
@@ -1053,6 +1078,16 @@ PyMODINIT_FUNC PyInit_fiot(void)
 
    }
 
+   for (i=0;i<FIOT_COMMAND_MAX_INDEX;i++)
+      if (PyModule_AddIntConstant(m, FIOT_COMMAND[i].name, FIOT_COMMAND[i].value)) {
+
+         printf("\nAt index %d", (int)i);
+         PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_CANT_ADD_CONSTANT_INITIALIZATION, f_last_error=PyC_ERR_ADD_CONST_INI));
+
+         return NULL;
+
+      }
+
    Py_INCREF(&FIOT_RAW_DATA_OBJ_type);
    if (PyModule_AddObject(m, "init", (PyObject *) &FIOT_RAW_DATA_OBJ_type) < 0) {
 
@@ -1067,7 +1102,7 @@ PyMODINIT_FUNC PyInit_fiot(void)
 
    if (PyModule_AddFunctions(m, mMethods)) {
 
-      PyErr_SetString(PyExc_Exception, "\nCannot add method to \"fiot\"\n");
+      PyErr_SetString(PyExc_Exception, "\nCannot add method to \"FIOT\"\n");
       Py_DECREF(&FIOT_RAW_DATA_OBJ_type);
       Py_DECREF(m);
       f_last_error=PyC_ERR_ADD_METHOD;
