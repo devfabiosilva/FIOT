@@ -22,28 +22,17 @@ typedef struct {
     unsigned char raw_data[F_NANO_TRANSACTION_MAX_SZ];
     unsigned char sent_raw_data[F_NANO_TRANSACTION_MAX_SZ];
     PyObject *fc_onerror;
-//    PyObject *callable;
 } FIOT_RAW_DATA_OBJ;
 
 //util
-static void f_call_onerror(FIOT_RAW_DATA_OBJ *self)
+static int f_set_error_no_raise_util(FIOT_RAW_DATA_OBJ *self, const char *error_msg, int err)
 {
 
-   if (self->fc_onerror) {
-   // To be implemented
-   }
-
-}
-// !!! for doc
-// returns 1 if is callable, 0 not callable, -1 (internal raise exception) (fabio)
-static int f_set_error_util(FIOT_RAW_DATA_OBJ *self, PyObject *type, const char *error_msg, int err) {
-
    PyObject *tmp;
-   const char *m=(const char *)fpyc_err_msg(error_msg, err);
 
    if (self->fc_onerror) {
 
-      if (!(tmp=Py_BuildValue("s", m)))
+      if (!(tmp=Py_BuildValue("s", error_msg)))
          return -1;
 
       if (PyObject_SetAttrString(self->fc_onerror, "msg", tmp))
@@ -60,17 +49,17 @@ static int f_set_error_util(FIOT_RAW_DATA_OBJ *self, PyObject *type, const char 
 
       if (PyObject_DelAttrString(self->fc_onerror, "err")) {
 
-         m=(const char *)fpyc_err_msg(MSG_ERR_DEL_ATTR, f_last_error=PyC_ERR_DELETE_ATTRIBUTE_ERR);
+         PyErr_SetString(PyExc_Exception, (const char *)fpyc_err_msg(MSG_ERR_DEL_ATTR, f_last_error=PyC_ERR_DELETE_ATTRIBUTE_ERR));
 
-         goto f_set_error_util_EXIT;
+         return -1;
 
       }
 
       if (PyObject_DelAttrString(self->fc_onerror, "msg")) {
 
-         m=(const char *)fpyc_err_msg(MSG_ERR_DEL_ATTR, f_last_error=PyC_ERR_DELETE_ATTRIBUTE_MSG);
+         PyErr_SetString(PyExc_Exception, (const char *)fpyc_err_msg(MSG_ERR_DEL_ATTR, f_last_error=PyC_ERR_DELETE_ATTRIBUTE_MSG));
 
-         goto f_set_error_util_EXIT;
+         return -1;
 
       }
 
@@ -78,7 +67,20 @@ static int f_set_error_util(FIOT_RAW_DATA_OBJ *self, PyObject *type, const char 
 
    }
 
-f_set_error_util_EXIT:
+   return 0;
+
+}
+// !!! for doc
+// !!! WITH RAISE EXCEPTION
+// returns 1 if is callable, 0 not callable, -1 (internal raise exception) (fabio)
+static int f_set_error_util(FIOT_RAW_DATA_OBJ *self, PyObject *type, const char *error_msg, int err) {
+
+   const char *m=(const char *)fpyc_err_msg(error_msg, err);
+   int ret=f_set_error_no_raise_util(self, m, err);
+
+   if (ret)
+      return ret;
+
    PyErr_SetString(type, m);
 
    return 0;
@@ -87,18 +89,18 @@ f_set_error_util_EXIT:
 
 static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, size_t data_sz)
 {
-/*
+
    FPYC_ERR err;
 
    if (data_sz>F_NANO_TRANSACTION_MAX_SZ) {
 
-      PyErr_SetString(PyExc_MemoryError, fpyc_err_msg(MSG_ERR_RAW_DATA_SZ_OVFL, err=PyC_ERR_MEM_OVFL));
+      f_set_error_no_raise_util(self, MSG_ERR_RAW_DATA_SZ_OVFL, err=PyC_ERR_MEM_OVFL);
 
       return err;
    
    } else if (data_sz==0) {
 
-      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_RAW_DATA_SZ_IS_ZERO, err=PyC_ERR_RAW_DATA_SZ_ZERO));
+      f_set_error_no_raise_util(self, MSR_ERR_RAW_DATA_SZ_IS_ZERO, err=PyC_ERR_RAW_DATA_SZ_ZERO);
 
       return err;
 
@@ -106,7 +108,7 @@ static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, siz
 
    if ((err=verify_protocol((F_NANO_HW_TRANSACTION *)data, 1))) {
 
-      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_INVALID_INCOMING_PROTOCOL, err));
+      f_set_error_no_raise_util(self, MSR_ERR_INVALID_INCOMING_PROTOCOL, err);
 
       return err;
 
@@ -114,45 +116,7 @@ static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, siz
 
    if ((((F_NANO_HW_TRANSACTION *)data)->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)data_sz) {
 
-      PyErr_SetString(PyExc_ValueError, fpyc_err_msg(MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ, err=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ));
-
-      return err;
-
-   }
-
-   self->raw_data_sz=data_sz;
-   memcpy(self->raw_data, data, data_sz);
-
-   return PyC_ERR_OK;
-*/
-
-   FPYC_ERR err;
-
-   if (data_sz>F_NANO_TRANSACTION_MAX_SZ) {
-
-      f_set_error_util(self, PyExc_MemoryError, MSG_ERR_RAW_DATA_SZ_OVFL, err=PyC_ERR_MEM_OVFL);
-
-      return err;
-   
-   } else if (data_sz==0) {
-
-      f_set_error_util(self, PyExc_ValueError, MSR_ERR_RAW_DATA_SZ_IS_ZERO, err=PyC_ERR_RAW_DATA_SZ_ZERO);
-
-      return err;
-
-   }
-
-   if ((err=verify_protocol((F_NANO_HW_TRANSACTION *)data, 1))) {
-
-      f_set_error_util(self, PyExc_ValueError, MSR_ERR_INVALID_INCOMING_PROTOCOL, err);
-
-      return err;
-
-   }
-
-   if ((((F_NANO_HW_TRANSACTION *)data)->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))^(uint32_t)data_sz) {
-
-      f_set_error_util(self, PyExc_ValueError, MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ, err=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ);
+      f_set_error_no_raise_util(self, MSR_ERR_BUF_SIZE_DIFFERS_PROT_SZ, err=PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ);
 
       return err;
 
@@ -219,7 +183,6 @@ static PyObject *fiot_raw_data_obj_new(PyTypeObject *type, PyObject *args, PyObj
       self->sent_raw_data_sz=0;
       memset(self->raw_data, 0, 2*F_NANO_TRANSACTION_MAX_SZ);
       self->fc_onerror=NULL;
-//      self->callable=NULL;
 
    } else {
 
@@ -257,8 +220,13 @@ static int fiot_raw_data_obj_init(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObj
 
    }
 
-   if ((f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)))
+   if ((f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz))) {
+
+      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_CANT_INIT_FIOT_PROT_MODULE, f_last_error));
+
       return f_last_error;
+
+   }
 
    self->sent_raw_data_sz=0;
    memset(self->sent_raw_data, 0, F_NANO_TRANSACTION_MAX_SZ);
@@ -291,17 +259,17 @@ static PyObject *getincomingmessage(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
 
    if (!buf) {
 
-      //PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NULL_C_PTR, f_last_error=PyC_ERR_INVALID_NULL_C_POINTER));
-      if (f_set_error_util(self, PyExc_Exception, MSG_ERR_INVALID_NULL_C_PTR, f_last_error=PyC_ERR_INVALID_NULL_C_POINTER)>0)
-         return Py_None;
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NULL_C_PTR, f_last_error=PyC_ERR_INVALID_NULL_C_POINTER)<0)
+         return NULL;
 
-      return NULL;
+      return PyLong_FromLong((long int)f_last_error);
 
    }
 
    if ((f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)))
-      if (!(self->fc_onerror))
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_INCOMING_MESSAGE_UTIL_FC, f_last_error)<0)
          return NULL;
+
 
    return PyLong_FromLong((long int)f_last_error);
 
@@ -312,11 +280,23 @@ static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
 
    const char *s;
 
-   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1)))
-      return Py_None;//Py_BuildValue("s", NULL);
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1))) {
 
-   if ((f_last_error=valid_nano_wallet(s=(const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)))))
+      if (f_set_error_no_raise_util(self, MSG_ERR_INCOMING_OUTCOMING_FC, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((f_last_error=valid_nano_wallet(s=(const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata))))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_INCOMING, f_last_error)<0)
+         return NULL;
+
       s=NULL;
+
+   }
 
    return Py_BuildValue("s", s);
 
@@ -325,21 +305,36 @@ static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
 static PyObject *get_representative_addr_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   const char *s;//=NULL;
+   const char *s;
 
-   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
-      return Py_None;//Py_BuildValue("s", s);
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0))) {
 
-   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_REPRESENTATIVE_TO_CLIENT) {
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_REP_FROM_SERVER_SIDE, f_last_error)<0)
+         return NULL;
 
-      f_last_error=PyC_ERR_UNABLE_GET_REP;
-
-      return Py_None;//Py_BuildValue("s", s);
+      return Py_None;
 
    }
 
-   if ((f_last_error=valid_nano_wallet(s=(const char *)(self->sent_raw_data+MAX_STR_NANO_CHAR+offsetof(F_NANO_HW_TRANSACTION, rawdata)))))
+   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_REPRESENTATIVE_TO_CLIENT) {
+
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_UNABLE_GET_REP_SENDING_DATA, f_last_error=PyC_ERR_UNABLE_GET_REP)<0)
+         return NULL;
+
+
+      return Py_None;
+
+   }
+
+   if ((f_last_error=valid_nano_wallet(s=(const char *)(self->sent_raw_data+MAX_STR_NANO_CHAR+offsetof(F_NANO_HW_TRANSACTION, rawdata))))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_REPRESENTATIVE, f_last_error)<0)
+         return NULL;
+
       s=NULL;
+
+   }
 
    return Py_BuildValue("s", s);
 
@@ -350,19 +345,32 @@ static PyObject *get_raw_balance_value_from_sending_data(FIOT_RAW_DATA_OBJ *self
 
    const char *s=NULL;
 
-   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
-      return Py_BuildValue("s", s);
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0))) {
 
-   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_RAW_BALANCE_TO_CLIENT) {
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_RAW_BALANCE_FROM_SENDING_DATA, f_last_error)<0)
+         return NULL;
 
-      f_last_error=PyC_ERR_UNABLE_GET_RAW_BALANCE;
-
-      return Py_BuildValue("s", s);
+      return Py_None;
 
    }
 
-   if ((f_last_error=valid_raw_balance(s=(const char *)(self->sent_raw_data+MAX_STR_NANO_CHAR+offsetof(F_NANO_HW_TRANSACTION, rawdata)))))
+   if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_RAW_BALANCE_TO_CLIENT) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_RAW_BALANCE_NOT_FOUND_SENDING_DATA, f_last_error=PyC_ERR_UNABLE_GET_RAW_BALANCE)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((f_last_error=valid_raw_balance(s=(const char *)(self->sent_raw_data+MAX_STR_NANO_CHAR+offsetof(F_NANO_HW_TRANSACTION, rawdata))))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_RAW_BALANCE_FROM_SENDING_DATA_NOT_VALID, f_last_error)<0)
+         return NULL;
+
       s=NULL;
+
+   }
 
    return Py_BuildValue("s", s);
 
@@ -371,25 +379,33 @@ static PyObject *get_raw_balance_value_from_sending_data(FIOT_RAW_DATA_OBJ *self
 static PyObject *get_frontier_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   char *s=NULL;
+   char *s;
    PyObject *ret;
 
-   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
-      return Py_BuildValue("s", (const char *)s);
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_FRONTIER_FROM_SENDING_DATA_NOT_VALID, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
 
    if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_FRONTIER_TO_CLIENT) {
 
-      f_last_error=PyC_ERR_UNABLE_GET_RAW_FRONTIER;
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_FRONTIER_NOT_FOUND_IN_SENDING_DATA, f_last_error=PyC_ERR_UNABLE_GET_RAW_FRONTIER)<0)
+         return NULL;
 
-      return Py_BuildValue("s", (const char *)s);
+      return Py_None;
 
    }
 
    if (!(s=malloc(2*MAX_RAW_DATA_FRONTIER+1))) {
 
-      f_last_error=PyC_ERR_BUFFER_ALLOC;
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
 
-      return Py_BuildValue("s", NULL);
+      return NULL;
 
    }
 
@@ -406,25 +422,33 @@ static PyObject *get_frontier_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, P
 static PyObject *get_dpow_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   char *s=NULL;
+   char *s;
    PyObject *ret;
 
-   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
-      return Py_BuildValue("s", (const char *)s);
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_FROM_SENDING_DATA_NOT_VALID, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
 
    if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_DPOW_TO_CLIENT) {
 
-      f_last_error=PyC_ERR_UNABLE_GET_DPOW;
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_NOT_FOUND_IN_SENDING_DATA, f_last_error=PyC_ERR_UNABLE_GET_DPOW)<0)
+         return NULL;
 
-      return Py_BuildValue("s", (const char *)s);
+      return Py_None;
 
    }
 
    if (!(s=malloc(20))) {
 
-      f_last_error=PyC_ERR_BUFFER_ALLOC;
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
 
-      return Py_BuildValue("s", NULL);
+      return NULL;
 
    }
 
@@ -443,25 +467,33 @@ static PyObject *get_dpow_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObj
 static PyObject *get_calculated_dpow_hash_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   char *s=NULL;
+   char *s;
    PyObject *ret;
 
-   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0)))
-      return Py_BuildValue("s", (const char *)s);
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_HASH_FROM_SENDING_DATA_NOT_VALID, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
 
    if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_DPOW_TO_CLIENT) {
 
-      f_last_error=PyC_ERR_UNABLE_GET_CALCULATED_DPOW_HASH;
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_HASH_FROM_SENDING_DATA_NOT_FOUND, f_last_error=PyC_ERR_UNABLE_GET_CALCULATED_DPOW_HASH)<0)
+         return NULL;
 
-      return Py_BuildValue("s", (const char *)s);
+      return Py_None;
 
    }
 
    if (!(s=malloc(2*MAX_RAW_DATA_HASH+1))) {
 
-      f_last_error=PyC_ERR_BUFFER_ALLOC;
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
 
-      return Py_BuildValue("s", NULL);
+      return NULL;
 
    }
 
@@ -478,25 +510,33 @@ static PyObject *get_calculated_dpow_hash_from_sending_data(FIOT_RAW_DATA_OBJ *s
 static PyObject *get_dpow_hash_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   char *s=NULL;
+   char *s;
    PyObject *ret;
 
-   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1)))
-      return Py_BuildValue("s", (const char *)s);
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_HASH_FROM_INCOMING_DATA_NOT_VALID, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
 
    if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_GET_DPOW) {
 
-      f_last_error=PyC_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT;
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_HASH_FROM_INCOMING_DATA_NOT_FOUND, f_last_error=PyC_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT)<0)
+         return NULL;
 
-      return Py_BuildValue("s", (const char *)s);
+      return Py_None;
 
    }
 
    if (!(s=malloc(2*MAX_RAW_DATA_HASH+1))) {
 
-      f_last_error=PyC_ERR_BUFFER_ALLOC;
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
 
-      return Py_BuildValue("s", NULL);
+      return NULL;
 
    }
 
@@ -514,24 +554,33 @@ static PyObject *get_dpow_hash_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
 static PyObject *get_signed_transaction_fee_json(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   const char *s=NULL;
+   const char *s;
 
-   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1)))
-      return Py_BuildValue("s", s);
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 1))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_NOT_VALID_IN_INCOMING_DATA, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
 
    if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_GET_DPOW) {
 
-      f_last_error=PyC_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE;
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_NOT_FOUND_IN_INCOMING_DATA, f_last_error=PyC_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE)<0)
+         return NULL;
 
-      return Py_BuildValue("s", s);
+      return Py_None;
 
    }
 
    if ((strnlen(s=((const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH)),
       JSON_TRANSACTION_FEE_BUF_SZ))==JSON_TRANSACTION_FEE_BUF_SZ) {
 
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_INVALID_JSON_IN_INCOMING_DATA, f_last_error=PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL)<0)
+         return NULL;
+
       s=NULL;
-      f_last_error=PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL;
 
    }
 
@@ -561,8 +610,8 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
 
-      PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
-      f_last_error=PyC_ERR_BUFFER_ALLOC;
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_ALLOC_BUFFER, f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
 
       return NULL;
 
@@ -578,13 +627,15 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
@@ -592,7 +643,8 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    if ((f_last_error=valid_nano_wallet((const char *)p))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_WALLET, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET, f_last_error)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
@@ -602,13 +654,15 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    if ((sz_tmp=(strnlen(raw_balance, MAX_STR_RAW_BALANCE_MAX)))==MAX_STR_RAW_BALANCE_MAX) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
@@ -616,7 +670,8 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    if ((f_last_error=valid_raw_balance(raw_balance))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_RAW_BALANCE, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_RAW_BALANCE, f_last_error)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
@@ -631,13 +686,15 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
@@ -647,7 +704,8 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    if ((f_last_error=prepare_command(buf, NULL))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_PREPARE_COMMAND, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, f_last_error)<0)
+         return NULL;
 
       goto set_raw_balance_EXIT1;
 
@@ -686,8 +744,8 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
 
-      PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
-      f_last_error=PyC_ERR_BUFFER_ALLOC;
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_ALLOC_BUFFER, f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
 
       return NULL;
 
@@ -703,13 +761,15 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
@@ -717,7 +777,8 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    if ((f_last_error=valid_nano_wallet((const char *)p))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_WALLET, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET, f_last_error)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
@@ -727,13 +788,15 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    if ((sz_tmp=strnlen((const char *)frontier, MAX_STR_DATA_FRONTIER))==MAX_STR_DATA_FRONTIER) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
    } else if (sz_tmp^(MAX_STR_DATA_FRONTIER-1)) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_FRONTIER, f_last_error=PyC_ERR_NANO_FRONTIER_INVALID_SIZE));
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_FRONTIER, f_last_error=PyC_ERR_NANO_FRONTIER_INVALID_SIZE)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
@@ -741,7 +804,8 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    if ((f_last_error=f_str_to_hex((uint8_t *)(buf->rawdata+MAX_STR_NANO_CHAR), (const char *)frontier))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_CANT_PARSE_NANO_WALLET_FRONTIER, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_CANT_PARSE_NANO_WALLET_FRONTIER, f_last_error)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
@@ -754,13 +818,15 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
@@ -770,7 +836,8 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    if ((f_last_error=prepare_command(buf, NULL))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_PREPARE_COMMAND, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, f_last_error)<0)
+         return NULL;
 
       goto set_frontier_EXIT1;
 
@@ -811,8 +878,8 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
 
-      PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
-      f_last_error=PyC_ERR_BUFFER_ALLOC;
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_ALLOC_BUFFER, f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
 
       return NULL;
 
@@ -828,13 +895,15 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
@@ -842,7 +911,8 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    if ((f_last_error=valid_nano_wallet((const char *)p))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_WALLET, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET, f_last_error)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
@@ -852,13 +922,15 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    if ((sz_tmp=strnlen((const char *)hash_val, MAX_STR_DATA_HASH_VALUE))==MAX_STR_DATA_HASH_VALUE) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
    } else if (sz_tmp^(MAX_STR_DATA_HASH_VALUE-1)) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_HASH_SIZE, f_last_error=PyC_ERR_NANO_HASH_INVALID_SIZE));
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_HASH_SIZE, f_last_error=PyC_ERR_NANO_HASH_INVALID_SIZE)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
@@ -866,7 +938,8 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    if ((f_last_error=f_str_to_hex((uint8_t *)(buf->rawdata+MAX_STR_NANO_CHAR), (const char *)hash_val))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_CANT_PARSE_HASH_VALUE, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_CANT_PARSE_HASH_VALUE, f_last_error)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
@@ -881,13 +954,15 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
@@ -897,7 +972,8 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    if ((f_last_error=prepare_command(buf, NULL))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_PREPARE_COMMAND, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, f_last_error)<0)
+         return NULL;
 
       goto send_dpow_EXIT1;
 
@@ -937,8 +1013,8 @@ static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
 
-      PyErr_SetString(PyExc_BufferError, MSG_ERR_ALLOC_BUFFER);
-      f_last_error=PyC_ERR_BUFFER_ALLOC;
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_ALLOC_BUFFER, f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
 
       return NULL;
 
@@ -954,13 +1030,15 @@ static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
@@ -968,7 +1046,8 @@ static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    if ((f_last_error=valid_nano_wallet((const char *)p))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_WALLET, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET, f_last_error)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
@@ -978,13 +1057,15 @@ static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    if ((sz_tmp=strnlen((const char *)rep, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
@@ -992,7 +1073,8 @@ static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    if ((f_last_error=valid_nano_wallet((const char *)rep))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_INVALID_NANO_REPRESENTATIVE, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_REPRESENTATIVE, f_last_error)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
@@ -1007,13 +1089,15 @@ static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL));
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
    } else if (sz_tmp==0) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR));
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, f_last_error=PyC_ERR_EMPTY_STR)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
@@ -1023,7 +1107,8 @@ static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    if ((f_last_error=prepare_command(buf, NULL))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_PREPARE_COMMAND, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, f_last_error)<0)
+         return NULL;
 
       goto send_representative_EXIT1;
 
@@ -1049,56 +1134,32 @@ static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
 
    if ((sz_tmp=(size_t)self->sent_raw_data_sz)>F_NANO_TRANSACTION_MAX_SZ) {
 
-      PyErr_SetString(PyExc_MemoryError, fpyc_err_msg(MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_MEM_OVFL));
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_MEM_OVFL)>0)
+         return Py_BuildValue("y#", NULL, 0);
 
       return NULL;
 
-   } else if (sz_tmp==0)
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_NULL_DATA, f_last_error=PyC_ERR_NULL_DATA)<0)
+         return NULL;
+
       return Py_BuildValue("y#", NULL, 0);
+
+   }
 
    if ((f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->sent_raw_data, 0))) {
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_VERIFY_INCOMING_PROTOCOL, f_last_error));
+      if (f_set_error_no_raise_util(self, MSG_ERR_VERIFY_INCOMING_PROTOCOL, f_last_error)<0)
+         return NULL;
 
-      return NULL;
+      return Py_BuildValue("y#", NULL, 0);
 
    }
 
    return Py_BuildValue("y#", (const void *)self->sent_raw_data, (Py_ssize_t)self->sent_raw_data_sz);
 
 }
-
-/*
-static PyObject *set_callable(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
-{
-   static char *kwlist[] = {"func", NULL};
-   PyObject *fobj;
-
-   if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &fobj)) {
-
-      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
-      f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
-
-      return NULL;
-
-   }
-
-   if (!PyCallable_Check(fobj)) {
-
-      if (f_set_error_util(self, PyExc_Exception, MSG_ERR_OBJ_NOT_CALLABLE, f_last_error=PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL)>0)
-         return Py_BuildValue("s", NULL);
-      //PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_OBJ_NOT_CALLABLE, f_last_error=PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL));
-
-      return NULL;
-
-   }
-
-   self->callable=fobj;
-
-   return PyLong_FromLong((long int)(f_last_error=PyC_ERR_OK));
-
-}
-*/
 
 static PyObject *set_onerror(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
 {
@@ -1126,7 +1187,7 @@ static PyObject *set_onerror(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *
 
       self->fc_onerror=NULL;
 
-      PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_OBJ_NOT_CALLABLE, f_last_error=PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL));
+      f_set_error_util(self, PyExc_MemoryError, MSG_ERR_OBJ_NOT_CALLABLE, f_last_error=PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL);
 
       return NULL;
 
@@ -1139,26 +1200,99 @@ set_onerror_EXIT:
 
 static F_COMMAND_CONSTANT FIOT_COMMAND[] = {
 
-   {"CMD_SEND_RAW_BALANCE_TO_CLIENT",
-      (long int)CMD_SEND_RAW_BALANCE_TO_CLIENT},
-   {"CMD_SEND_FRONTIER_TO_CLIENT",
-      (long int)CMD_SEND_FRONTIER_TO_CLIENT},
-   {"CMD_SEND_DPOW_TO_CLIENT",
-      (long int)CMD_SEND_DPOW_TO_CLIENT},
-   {"CMD_SEND_REPRESENTATIVE_TO_CLIENT",
-      (long int)CMD_SEND_REPRESENTATIVE_TO_CLIENT},
-   {"CMD_GET_RAW_BALANCE",
-      (long int)CMD_GET_RAW_BALANCE},
-   {"CMD_GET_FRONTIER",
-      (long int)CMD_GET_FRONTIER},
-   {"CMD_GET_DPOW",
-      (long int)CMD_GET_DPOW},
-   {"CMD_GET_REPRESENTATIVE",
-      (long int)CMD_GET_REPRESENTATIVE}
+   {"CMD_SEND_RAW_BALANCE_TO_CLIENT", CMD_SEND_RAW_BALANCE_TO_CLIENT},
+   {"CMD_SEND_FRONTIER_TO_CLIENT", CMD_SEND_FRONTIER_TO_CLIENT},
+   {"CMD_SEND_DPOW_TO_CLIENT", CMD_SEND_DPOW_TO_CLIENT},
+   {"CMD_SEND_REPRESENTATIVE_TO_CLIENT", CMD_SEND_REPRESENTATIVE_TO_CLIENT},
+   {"CMD_GET_RAW_BALANCE", CMD_GET_RAW_BALANCE},
+   {"CMD_GET_FRONTIER", CMD_GET_FRONTIER},
+   {"CMD_GET_DPOW", CMD_GET_DPOW},
+   {"CMD_GET_REPRESENTATIVE", CMD_GET_REPRESENTATIVE}
 
 };
-
 #define FIOT_COMMAND_MAX_INDEX (size_t)(sizeof(FIOT_COMMAND)/sizeof(F_COMMAND_CONSTANT))
+
+static F_ERR_CONST ERR_CONST[] = {
+   {"F_ERR_OK", PyC_ERR_OK},
+   {"F_ERR_BUFFER_ALLOC", PyC_ERR_BUFFER_ALLOC},
+   {"F_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS", PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS},
+   {"F_ERR_MEM_OVFL", PyC_ERR_MEM_OVFL},
+   {"F_ERR_RAW_DATA_SZ_ZERO", PyC_ERR_RAW_DATA_SZ_ZERO},
+   {"F_ERR_DATA_OBJ_NOT_READY", PyC_ERR_DATA_OBJ_NOT_READY},
+   {"F_ERR_DATA_OBJ_CREATE", PyC_ERR_DATA_OBJ_CREATE},
+   {"F_ERR_DATA_OBJ_CREATE_ATTR", PyC_ERR_DATA_OBJ_CREATE_ATTR},
+   {"F_ERR_ADD_METHO", PyC_ERR_ADD_METHOD},
+   {"F_ERR_NULL_OBJ", PyC_ERR_NULL_OBJ},
+   {"F_ERR_PUBLISH_ADDR_OVFL", PyC_ERR_PUBLISH_ADDR_OVFL},
+   {"F_ERR_F_NANO_TRANSACTION_RAW_DATA_SZ_MAX_OVF", PyC_ERR_F_NANO_TRANSACTION_RAW_DATA_SZ_MAX_OVF},
+   {"F_ERR_CANT_OPEN_FILE", PyC_ERR_CANT_OPEN_FILE},
+   {"F_ERR_READING_FILE", PyC_ERR_READING_FILE},
+   {"F_ERR_INVALID_INCOMING_PREAMBLE", PyC_ERR_INVALID_INCOMING_PREAMBLE},
+   {"F_ERR_IS_NOT_INCOMING_COMMAND", PyC_ERR_IS_NOT_INCOMING_COMMAND},
+   {"F_ERR_IS_NOT_FROM_THIS_SERVER_COMMAND", PyC_ERR_IS_NOT_FROM_THIS_SERVER_COMMAND},
+   {"F_ERR_INVALID_INCOMING_COMMAND", PyC_ERR_INVALID_INCOMING_COMMAND},
+   {"F_ERR_INCOMING_COMMAND_RAW_DATA_SZ", PyC_ERR_INCOMING_COMMAND_RAW_DATA_SZ},
+   {"F_ERR_INCOMING_INVALID_CHKSUM", PyC_ERR_INCOMING_INVALID_CHKSUM},
+   {"F_ERR_STR_MAX_SZ_OVFL", PyC_ERR_STR_MAX_SZ_OVFL},
+   {"F_ERR_EMPTY_STR", PyC_ERR_EMPTY_STR},
+   {"F_ERR_NANO_FRONTIER_INVALID_SIZE", PyC_ERR_NANO_FRONTIER_INVALID_SIZE},
+   {"F_ERR_NANO_HASH_INVALID_SIZE", PyC_ERR_NANO_HASH_INVALID_SIZE},
+   {"F_ERR_INVALID_INCOMING_PROTOCOL", PyC_ERR_INVALID_INCOMING_PROTOCOL},
+   {"F_ERR_BUF_SZ_DIFFERS_PROT_SZ", PyC_ERR_BUF_SZ_DIFFERS_PROT_SZ},
+   {"F_ERR_INVALID_NULL_C_POINTER", PyC_ERR_INVALID_NULL_C_POINTER},
+   {"F_ERR_UNABLE_GET_REP", PyC_ERR_UNABLE_GET_REP},
+   {"F_ERR_UNABLE_GET_RAW_BALANCE", PyC_ERR_UNABLE_GET_RAW_BALANCE},
+   {"F_ERR_UNABLE_GET_RAW_FRONTIER", PyC_ERR_UNABLE_GET_RAW_FRONTIER},
+   {"F_ERR_UNABLE_GET_DPOW", PyC_ERR_UNABLE_GET_DPOW},
+   {"F_ERR_UNABLE_GET_CALCULATED_DPOW_HASH", PyC_ERR_UNABLE_GET_CALCULATED_DPOW_HASH},
+   {"F_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT", PyC_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT},
+   {"F_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE", PyC_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE},
+   {"F_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL", PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL},
+   {"F_ERR_ADD_CONST_INI", PyC_ERR_ADD_CONST_INI},
+   {"F_ERR_OBJ_IS_NOT_FUNCTION_CALL", PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL},
+   {"F_ERR_OBJ", PyC_ERR_OBJ},
+   {"F_ERR_DELETE_ATTRIBUTE_ERR", PyC_ERR_DELETE_ATTRIBUTE_ERR},
+   {"F_ERR_DELETE_ATTRIBUTE_MSG", PyC_ERR_DELETE_ATTRIBUTE_MSG},
+   {"F_ERR_NULL_DATA", PyC_ERR_NULL_DATA}
+};
+#define ERR_CONST_INDEX (size_t)(sizeof(ERR_CONST)/sizeof(F_ERR_CONST))
+
+static PyObject *geterrorname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+   static char *kwlist[] = {"errname", NULL};
+   size_t i;
+   int errname;
+   const char *p;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "i", kwlist, &errname)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   p=NULL;
+
+   for (i=0;i<ERR_CONST_INDEX;i++) {
+
+      if (ERR_CONST[i].value^errname)
+         continue;
+
+      p=ERR_CONST[i].name;
+
+      break;
+
+   }
+
+   if (!p)
+      p="Unknown error index";
+
+   return Py_BuildValue("s", (const char *)p);
+
+}
+
 
 static PyMethodDef mMethods[] = {
     {"about", about, METH_NOARGS, "About"},
@@ -1191,6 +1325,8 @@ static PyMethodDef fiot_methods[] = {
        "Returns Nano Wallet HASH value to be calculated in client data, if exists."},
     {"get_signed_trans_fee", (PyCFunction)get_signed_transaction_fee_json, METH_NOARGS,
        "Returns Nano Wallet signed transaction fee string JSON value in client data, if exists."},
+    {"geterrorname", (PyCFunction)geterrorname, METH_VARARGS|METH_KEYWORDS,
+       "Returns error name given an error number."},
     {"onerror", (PyCFunction)set_onerror, METH_VARARGS|METH_KEYWORDS,
        "On error event. Set a callable function here"},
     {NULL, NULL, 0, NULL}
@@ -1202,7 +1338,6 @@ static PyMemberDef FIOT_RAW_DATA_OBJ_members[] = {
     {"sent_raw_data_sz", T_INT, offsetof(FIOT_RAW_DATA_OBJ, sent_raw_data_sz), 0, "Sent data size"},
     {"raw_data", T_UBYTE, offsetof(FIOT_RAW_DATA_OBJ, raw_data), 0, "incoming raw data"},
     {"sent_raw_data", T_UBYTE, offsetof(FIOT_RAW_DATA_OBJ, sent_raw_data), 0, "sent raw data"},
-//    {"onerror", T_OBJECT, offsetof(FIOT_RAW_DATA_OBJ, fc_onerror), 0, "FIOT event \"on_error\""}, // It will be a function ok?
     {NULL, 0, 0, 0, NULL}
 };
 
@@ -1253,9 +1388,19 @@ PyMODINIT_FUNC PyInit_fiot(void)
    }
 
    for (i=0;i<FIOT_COMMAND_MAX_INDEX;i++)
-      if (PyModule_AddIntConstant(m, FIOT_COMMAND[i].name, FIOT_COMMAND[i].value)) {
+      if (PyModule_AddIntConstant(m, FIOT_COMMAND[i].name, (long int)FIOT_COMMAND[i].value)) {
 
-         printf("\nAt index %d", (int)i);
+         printf("\nAt index %d\nStep 1\n", (int)i);
+         PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_CANT_ADD_CONSTANT_INITIALIZATION, f_last_error=PyC_ERR_ADD_CONST_INI));
+
+         return NULL;
+
+      }
+
+   for (i=0;i<ERR_CONST_INDEX;i++)
+      if (PyModule_AddIntConstant(m, ERR_CONST[i].name, (long int)ERR_CONST[i].value)) {
+
+         printf("\nAt index %d\nStep 2\n", (int)i);
          PyErr_SetString(PyExc_Exception, fpyc_err_msg(MSG_ERR_CANT_ADD_CONSTANT_INITIALIZATION, f_last_error=PyC_ERR_ADD_CONST_INI));
 
          return NULL;

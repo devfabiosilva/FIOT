@@ -78,6 +78,6 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 
 typedef struct f_command_constant_t {
    const char *name;
-   long int value;
+   uint32_t value;
 } F_COMMAND_CONSTANT;
 

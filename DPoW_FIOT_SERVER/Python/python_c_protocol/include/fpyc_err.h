@@ -9,6 +9,11 @@
 
 char *fpyc_err_msg(const char *, int);
 
+typedef struct f_err_const_t {
+   const char *name;
+   int value;
+} F_ERR_CONST;
+
 typedef enum err_t {
    PyC_ERR_OK=0,
    PyC_ERR_BUFFER_ALLOC,
@@ -49,7 +54,8 @@ typedef enum err_t {
    PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL,
    PyC_ERR_OBJ,
    PyC_ERR_DELETE_ATTRIBUTE_ERR,
-   PyC_ERR_DELETE_ATTRIBUTE_MSG
+   PyC_ERR_DELETE_ATTRIBUTE_MSG,
+   PyC_ERR_NULL_DATA
 
 } FPYC_ERR;
 
@@ -73,3 +79,26 @@ typedef enum err_t {
 #define MSG_ERR_OBJ_NOT_CALLABLE "\nObject is not callable\n"
 #define MSG_ERR_OBJ "\nObject should not be callable\n"
 #define MSG_ERR_DEL_ATTR "\nCan't delete attribute in \"f_set_error_util\"\n"
+#define MSG_ERR_GET_INCOMING_MESSAGE_UTIL_FC "\nError in \"getincomingmessage_util\"\n"
+#define MSG_ERR_INCOMING_OUTCOMING_FC "\nError in \"verify_incoming_outcoming_raw_data_util\"\n"
+#define MSG_ERR_INVALID_NANO_WALLET_INCOMING "\nInvalid Nano Wallet in incoming data or Wallet not found\n"
+#define MSG_ERR_GET_REP_FROM_SERVER_SIDE "\nError in \"get_representative_addr_from_sending_data\" in server side\n"
+#define MSG_ERR_UNABLE_GET_REP_SENDING_DATA "\nUnable to get representative from sending data\n"
+#define MSG_ERR_GET_RAW_BALANCE_FROM_SENDING_DATA "\nUnable to get raw balance from sending data\n"
+#define MSG_ERR_GET_RAW_BALANCE_NOT_FOUND_SENDING_DATA "\nRaw balance not found in sending data\n"
+#define MSG_ERR_GET_RAW_BALANCE_FROM_SENDING_DATA_NOT_VALID "\nRaw balance in sending data not valid\n"
+#define MSG_ERR_GET_FRONTIER_FROM_SENDING_DATA_NOT_VALID "\nFrontier not valid in sending data.\n"
+#define MSG_ERR_GET_FRONTIER_NOT_FOUND_IN_SENDING_DATA "\nFrontier not found in sending data\n"
+#define MSG_ERR_GET_DPOW_FROM_SENDING_DATA_NOT_VALID "\nInvalid DPoW value from sending data\n"
+#define MSG_ERR_GET_DPOW_NOT_FOUND_IN_SENDING_DATA "\nDPoW not found in sending data\n"
+#define MSG_ERR_GET_DPOW_HASH_FROM_SENDING_DATA_NOT_VALID "\nInvalid DPoW hash from sending data\n"
+#define MSG_ERR_GET_DPOW_HASH_FROM_SENDING_DATA_NOT_FOUND "\nDPoW hash value not found in sending data\n"
+#define MSG_ERR_GET_DPOW_HASH_FROM_INCOMING_DATA_NOT_VALID "\nInvalid DPoW hash from incoming data\n"
+#define MSG_ERR_GET_DPOW_HASH_FROM_INCOMING_DATA_NOT_FOUND "\nDPoW hash not found from incoming data\n"
+#define MSG_ERR_GET_TRAN_FEE_NOT_VALID_IN_INCOMING_DATA "\nSigned JSON transaction not valid from incoming data\n"
+#define MSG_ERR_GET_TRAN_FEE_NOT_FOUND_IN_INCOMING_DATA "\nSigned JSON transaction fee not found in incoming data\n"
+#define MSG_ERR_GET_TRAN_FEE_INVALID_JSON_IN_INCOMING_DATA "\nSigned JSON string size exceeds \"JSON_TRANSACTION_FEE_BUF_SZ\". Try a small JSON string\n"
+#define MSG_ERR_NULL_DATA "\nNULL data\n"
+#define MSG_ERR_CANT_INIT_FIOT_PROT_MODULE "\nCan't init FIOT protocol module\n"
+
+
