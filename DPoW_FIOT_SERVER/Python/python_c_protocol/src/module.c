@@ -302,6 +302,33 @@ static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
 
 }
 
+static PyObject *get_nano_addr_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   const char *s;
+
+   if ((f_last_error=verify_incoming_outcoming_raw_data_util(self, 0))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INCOMING_OUTCOMING_FC, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((f_last_error=valid_nano_wallet(s=(const char *)(self->sent_raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata))))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, f_last_error)<0)
+         return NULL;
+
+      s=NULL;
+
+   }
+
+   return Py_BuildValue("s", s);
+
+}
+
 static PyObject *get_representative_addr_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
@@ -1286,16 +1313,117 @@ static PyObject *geterrorname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    }
 
-   if (!p)
-      p="Unknown error index";
-
-   return Py_BuildValue("s", (const char *)p);
+   return Py_BuildValue("s", (const char *)(p)?(p):("Unknown error index"));
 
 }
 
+static PyObject *getfiotcommandname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+
+   static char *kwlist[] = {"commandname", NULL};
+   size_t i;
+   int commandname;
+   const char *p;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "i", kwlist, &commandname)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   p=NULL;
+
+   for (i=0;i<FIOT_COMMAND_MAX_INDEX;i++) {
+
+      if (FIOT_COMMAND[i].value^commandname)
+         continue;
+
+      p=FIOT_COMMAND[i].name;
+
+      break;
+
+   }
+
+   return Py_BuildValue("s", (const char *)(p)?(p):("Unknown command name index"));
+
+}
+static PyObject *get_command_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   size_t sz_tmp;
+
+   if ((sz_tmp=(size_t)self->sent_raw_data_sz)>F_NANO_TRANSACTION_MAX_SZ) {
+
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_MEM_OVFL)>0)
+         return Py_None;
+
+      return NULL;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_NULL_DATA, f_last_error=PyC_ERR_NULL_DATA)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->sent_raw_data, 0))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_VERIFY_OUTCOMING_PROTOCOL, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   return PyLong_FromLong((long int)*((uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command))));
+
+}
+
+static PyObject *get_command_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   size_t sz_tmp;
+
+   if ((sz_tmp=(size_t)self->raw_data_sz)>F_NANO_TRANSACTION_MAX_SZ) {
+
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, f_last_error=PyC_ERR_MEM_OVFL)>0)
+         return Py_None;
+
+      return NULL;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_NULL_DATA, f_last_error=PyC_ERR_NULL_DATA)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->raw_data, 0))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_VERIFY_INCOMING_PROTOCOL, f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   return PyLong_FromLong((long int)*((uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command))));
+
+}
 
 static PyMethodDef mMethods[] = {
     {"about", about, METH_NOARGS, "About"},
+    {"geterrorname", (PyCFunction)geterrorname, METH_VARARGS|METH_KEYWORDS,
+       "Returns error name given an error number."},
+    {"getfiotcommandname", (PyCFunction)getfiotcommandname, METH_VARARGS|METH_KEYWORDS,
+       "Returns FIOT COMMAND name if exists."},
     {NULL, NULL, 0, NULL}
 };
 
@@ -1325,8 +1453,12 @@ static PyMethodDef fiot_methods[] = {
        "Returns Nano Wallet HASH value to be calculated in client data, if exists."},
     {"get_signed_trans_fee", (PyCFunction)get_signed_transaction_fee_json, METH_NOARGS,
        "Returns Nano Wallet signed transaction fee string JSON value in client data, if exists."},
-    {"geterrorname", (PyCFunction)geterrorname, METH_VARARGS|METH_KEYWORDS,
-       "Returns error name given an error number."},
+    {"get_nano_addr_from_outcoming_data", (PyCFunction)get_nano_addr_from_sending_data, METH_NOARGS,
+       "Returns Nano address in outcoming server data, if exists."},
+    {"get_command_from_sending_data", (PyCFunction)get_command_from_sending_data, METH_NOARGS,
+       "Returns FIOT COMMAND in sending raw data memory, if exists."},
+    {"get_command_from_incoming_data", (PyCFunction)get_command_from_incoming_data, METH_NOARGS,
+       "Returns FIOT COMMAND in incoming raw data memory, if exists."},
     {"onerror", (PyCFunction)set_onerror, METH_VARARGS|METH_KEYWORDS,
        "On error event. Set a callable function here"},
     {NULL, NULL, 0, NULL}
