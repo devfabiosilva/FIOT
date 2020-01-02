@@ -22,6 +22,8 @@ typedef struct {
     unsigned char raw_data[F_NANO_TRANSACTION_MAX_SZ];
     unsigned char sent_raw_data[F_NANO_TRANSACTION_MAX_SZ];
     PyObject *fc_onerror;
+    PyObject *fc_ondata; // received data from client
+    PyObject *fc_onsentdata; //to client
 } FIOT_RAW_DATA_OBJ;
 
 static F_ERR_CONST ERR_CONST[] = {
@@ -167,6 +169,32 @@ static int f_set_error_util(FIOT_RAW_DATA_OBJ *self, PyObject *type, const char 
 
 }
 
+FPYC_ERR check_is_callable(FIOT_RAW_DATA_OBJ *self, PyObject **obj)
+{
+
+   if (PyObject_TypeCheck(*obj, (PyTypeObject *)PyObject_Type(Py_None))) {
+
+      *obj=NULL;
+
+      goto check_is_callable_EXIT;
+
+   }
+
+   if (!PyCallable_Check(*obj)) {
+
+      *obj=NULL;
+
+      PyErr_SetString(PyExc_MemoryError, MSG_ERR_OBJ_NOT_CALLABLE);
+
+      return PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL;
+
+   }
+
+check_is_callable_EXIT:
+   return PyC_ERR_OK;
+
+}
+
 static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, size_t data_sz)
 {
 
@@ -263,6 +291,8 @@ static PyObject *fiot_raw_data_obj_new(PyTypeObject *type, PyObject *args, PyObj
       self->sent_raw_data_sz=0;
       memset(self->raw_data, 0, 2*F_NANO_TRANSACTION_MAX_SZ);
       self->fc_onerror=NULL;
+      self->fc_ondata=NULL;
+      self->fc_onsentdata=NULL;
 
    } else {
 
@@ -1282,26 +1312,36 @@ static PyObject *set_onerror(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *
 
    }
 
-   if (PyObject_TypeCheck(self->fc_onerror=fobj, (PyTypeObject *)PyObject_Type(Py_None))) {
+   self->fc_onerror=fobj;
 
-      self->fc_onerror=NULL;
+   if ((f_last_error=check_is_callable(self, &self->fc_onerror)))
+      return NULL;
 
-      goto set_onerror_EXIT;
+   return PyLong_FromLong((long int)f_last_error);
 
-   }
+}
 
-   if (!PyCallable_Check(fobj)) {
+static PyObject *set_onreceivedfromclient(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
 
-      self->fc_onerror=NULL;
+   static char *kwlist[] = {"func", NULL};
+   PyObject *fobj;
 
-      f_set_error_util(self, PyExc_MemoryError, MSG_ERR_OBJ_NOT_CALLABLE, f_last_error=PyC_ERR_OBJ_IS_NOT_FUNCTION_CALL);
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &fobj)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
 
       return NULL;
 
    }
 
-set_onerror_EXIT:
-   return PyLong_FromLong((long int)(f_last_error=PyC_ERR_OK));
+   self->fc_ondata=fobj;
+
+   if ((f_last_error=check_is_callable(self, &self->fc_ondata)))
+      return NULL;
+
+   return PyLong_FromLong((long int)f_last_error);
 
 }
 
@@ -1371,6 +1411,7 @@ static PyObject *getfiotcommandname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
    return Py_BuildValue("s", (const char *)(p)?(p):("Unknown command name index"));
 
 }
+
 static PyObject *get_command_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
@@ -1482,6 +1523,8 @@ static PyMethodDef fiot_methods[] = {
        "Returns FIOT COMMAND in incoming raw data memory, if exists."},
     {"onerror", (PyCFunction)set_onerror, METH_VARARGS|METH_KEYWORDS,
        "On error event. Set a callable function here"},
+    {"ondata", (PyCFunction)set_onreceivedfromclient, METH_VARARGS|METH_KEYWORDS,
+       "On receive data event from Fenix-IoT client. Set a callable function here"},
     {NULL, NULL, 0, NULL}
 
 };
