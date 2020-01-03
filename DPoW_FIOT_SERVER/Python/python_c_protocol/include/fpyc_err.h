@@ -55,7 +55,9 @@ typedef enum err_t {
    PyC_ERR_OBJ,
    PyC_ERR_DELETE_ATTRIBUTE_ERR,
    PyC_ERR_DELETE_ATTRIBUTE_MSG,
-   PyC_ERR_NULL_DATA
+   PyC_ERR_NULL_DATA,
+   PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS,
+   PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS
 
 } FPYC_ERR;
 
@@ -102,5 +104,6 @@ typedef enum err_t {
 #define MSG_ERR_GET_TRAN_FEE_INVALID_JSON_IN_INCOMING_DATA "\nSigned JSON string size exceeds \"JSON_TRANSACTION_FEE_BUF_SZ\". Try a small JSON string\n"
 #define MSG_ERR_NULL_DATA "\nNULL data\n"
 #define MSG_ERR_CANT_INIT_FIOT_PROT_MODULE "\nCan't init FIOT protocol module\n"
-
+#define MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS "\nCan't parse internal arguments in \"f_parse_args_util\" function\n"
+#define MSG_ERR_CANT_EXECUTE_FC_INTERNAL_ARGUMENTS "\nCan't execute function with parsed arguments via \"f_parse_args_util\" function\n"
 
