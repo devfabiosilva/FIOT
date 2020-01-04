@@ -36,7 +36,7 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_DATA_OBJ_NOT_READY", PyC_ERR_DATA_OBJ_NOT_READY},
    {"F_ERR_DATA_OBJ_CREATE", PyC_ERR_DATA_OBJ_CREATE},
    {"F_ERR_DATA_OBJ_CREATE_ATTR", PyC_ERR_DATA_OBJ_CREATE_ATTR},
-   {"F_ERR_ADD_METHO", PyC_ERR_ADD_METHOD},
+   {"F_ERR_ADD_METHOD", PyC_ERR_ADD_METHOD},
    {"F_ERR_NULL_OBJ", PyC_ERR_NULL_OBJ},
    {"F_ERR_PUBLISH_ADDR_OVFL", PyC_ERR_PUBLISH_ADDR_OVFL},
    {"F_ERR_F_NANO_TRANSACTION_RAW_DATA_SZ_MAX_OVF", PyC_ERR_F_NANO_TRANSACTION_RAW_DATA_SZ_MAX_OVF},
@@ -164,8 +164,6 @@ PyObject *f_parse_args_util(PyObject *dest, const char *fmt, ...)
 
          if (PyObject_SetAttrString(dest, (const char *)s_string, tmp))
             return NULL;
-
-         continue;
 
       }
 
@@ -1129,10 +1127,36 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    }
 
-   self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR));
+   memcpy((void *)self->sent_raw_data, (const void *)buf, (size_t)(self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))));
 
-   ret=Py_BuildValue("y#", (const void *)memcpy((void *)self->sent_raw_data, (const void *)buf,
-      (size_t)self->sent_raw_data_sz), (Py_ssize_t)self->sent_raw_data_sz);
+   if (self->fc_onsentdata) {
+
+      ret=NULL;
+
+      if (!f_parse_args_util(self->fc_onsentdata, "0I1s2s3v4s", buf->hdr.command, buf->hdr.publish_str, buf->rawdata, self->sent_raw_data,
+         self->sent_raw_data_sz, fhex2strv2((char *)buf, (const void *)(buf->rawdata+MAX_STR_NANO_CHAR), MAX_RAW_DATA_FRONTIER, 0))) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS, f_last_error=PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS);
+
+         goto set_frontier_EXIT1;
+
+      }
+
+      if (!(PyObject_CallFunctionObjArgs(self->fc_onsentdata, self->fc_onsentdata, NULL))) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_EXECUTE_FC_INTERNAL_ARGUMENTS, f_last_error=PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS);
+
+         goto set_frontier_EXIT1;
+
+      }
+
+      delete_slots_util(&self->fc_onsentdata);
+
+      ret=PyLong_FromLong((long int)(f_last_error=PyC_ERR_OK));
+
+   } else
+      ret=Py_BuildValue("y#", (const void *)self->sent_raw_data, (Py_ssize_t)self->sent_raw_data_sz);
+
 
 set_frontier_EXIT1:
    memset(buf, 0, F_NANO_TRANSACTION_MAX_SZ);
