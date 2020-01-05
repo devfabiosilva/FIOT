@@ -74,6 +74,7 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *buffer, int is_incoming)
 {
    FPYC_ERR err;
    uint32_t crc32_tmp;
+   size_t sz_tmp;
 
    if (buffer->hdr.preamble^F_PREAMBLE)
       return PyC_ERR_INVALID_INCOMING_PREAMBLE;
@@ -83,7 +84,15 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *buffer, int is_incoming)
       if (is_incoming)
          return PyC_ERR_IS_NOT_INCOMING_COMMAND;
 
-   } else if (is_incoming==0)
+   } else if (is_incoming) {
+
+      if ((sz_tmp=strnlen((const char *)buffer->hdr.publish_str, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ)
+         return PyC_ERR_FORBIDDEN_OVFL_PUBL_STR;
+
+      if (sz_tmp==0)
+         return PyC_ERR_FORBIDDEN_NULL_PUB_STR;
+
+   } else
       return PyC_ERR_IS_NOT_FROM_THIS_SERVER_COMMAND;
 
    if ((buffer->hdr.command)>(LAST_COMMAND))

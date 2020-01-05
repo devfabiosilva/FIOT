@@ -27,6 +27,7 @@ typedef struct {
 } FIOT_RAW_DATA_OBJ;
 
 static F_ERR_CONST ERR_CONST[] = {
+
    {"F_ERR_OK", PyC_ERR_OK},
    {"F_ERR_BUFFER_ALLOC", PyC_ERR_BUFFER_ALLOC},
    {"F_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS", PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS},
@@ -69,7 +70,10 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_DELETE_ATTRIBUTE_MSG", PyC_ERR_DELETE_ATTRIBUTE_MSG},
    {"F_ERR_NULL_DATA", PyC_ERR_NULL_DATA},
    {"F_ERR_CANT_PARSE_INTERNAL_ARGUMENTS", PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS},
-   {"F_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS", PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS}
+   {"F_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS", PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS},
+   {"F_ERR_FORBIDDEN_OVFL_PUBL_STR", PyC_ERR_FORBIDDEN_OVFL_PUBL_STR},
+   {"F_ERR_FORBIDDEN_NULL_PUB_STR", PyC_ERR_FORBIDDEN_NULL_PUB_STR}
+
 };
 
 #define ERR_CONST_INDEX (size_t)(sizeof(ERR_CONST)/sizeof(F_ERR_CONST))
@@ -84,7 +88,6 @@ PyObject *f_parse_args_util(PyObject *dest, const char *fmt, ...)
  v-> void or uint8
  I-> uint32
  L-> uint64
- N-> NULL
  # -> data size
  '0'-'9' -> slot
  Ex.: f_parse_args_util(obj, src, "9sv#I", mystr, mydata, mydata_sz, myuint32)
@@ -147,18 +150,6 @@ PyObject *f_parse_args_util(PyObject *dest, const char *fmt, ...)
       if (c=='L') {
 
          if (!(tmp=Py_BuildValue("k", (unsigned long int)va_arg(args, uint64_t))))
-            return NULL;
-
-         if (PyObject_SetAttrString(dest, (const char *)s_string, tmp))
-            return NULL;
-
-         continue;
-
-      }
-
-      if (c=='N') {
-
-         if (!(tmp=Py_BuildValue("s", NULL)))
             return NULL;
 
          if (PyObject_SetAttrString(dest, (const char *)s_string, tmp))
@@ -290,7 +281,7 @@ static int f_set_error_util(FIOT_RAW_DATA_OBJ *self, PyObject *type, const char 
 
 }
 
-static FPYC_ERR check_is_callable(FIOT_RAW_DATA_OBJ *self, PyObject **obj)
+static FPYC_ERR check_is_callable(PyObject **obj)
 {
 
    if (PyObject_TypeCheck(*obj, (PyTypeObject *)PyObject_Type(Py_None))) {
@@ -354,7 +345,40 @@ static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, siz
    self->raw_data_sz=data_sz;
    memcpy(self->raw_data, data, data_sz);
 
-   return PyC_ERR_OK;
+   err=PyC_ERR_OK;
+
+   if (self->fc_ondata) {
+
+      if (!f_parse_args_util(self->fc_ondata, "0I1I2I3I4I5L6s7v",
+         *(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)),
+         (uint32_t)(*(uint16_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_type))),
+         *(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_sz)),
+         *(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, version)),
+         *(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, last_msg_id)),
+         *(uint64_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, timestamp)),
+         self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str),
+         self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata),
+         self->raw_data_sz)) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS, err=PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS);
+
+         return err;
+
+      }
+
+      if (!(PyObject_CallFunctionObjArgs(self->fc_ondata, self->fc_ondata, NULL))) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_EXECUTE_FC_INTERNAL_ARGUMENTS, err=PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS);
+
+         return err;
+
+      }
+
+      delete_slots_util(&self->fc_ondata);
+
+   }
+
+   return err;
 
 }
 //is_incoming ->0 for self server or non zero for client
@@ -495,7 +519,6 @@ static PyObject *getincomingmessage(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
    if ((self->f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)))
       if (f_set_error_no_raise_util(self, MSG_ERR_GET_INCOMING_MESSAGE_UTIL_FC, self->f_last_error)<0)
          return NULL;
-
 
    return PyLong_FromLong((long int)self->f_last_error);
 
@@ -734,7 +757,8 @@ static PyObject *get_calculated_dpow_hash_from_sending_data(FIOT_RAW_DATA_OBJ *s
 
    if ((*(uint32_t *)(self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_SEND_DPOW_TO_CLIENT) {
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_HASH_FROM_SENDING_DATA_NOT_FOUND, self->f_last_error=PyC_ERR_UNABLE_GET_CALCULATED_DPOW_HASH)<0)
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_HASH_FROM_SENDING_DATA_NOT_FOUND,
+         self->f_last_error=PyC_ERR_UNABLE_GET_CALCULATED_DPOW_HASH)<0)
          return NULL;
 
       return Py_None;
@@ -777,7 +801,8 @@ static PyObject *get_dpow_hash_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
 
    if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_GET_DPOW) {
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_HASH_FROM_INCOMING_DATA_NOT_FOUND, self->f_last_error=PyC_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT)<0)
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_DPOW_HASH_FROM_INCOMING_DATA_NOT_FOUND,
+         self->f_last_error=PyC_ERR_UNABLE_GET_DPOW_HASH_FROM_CLIENT)<0)
          return NULL;
 
       return Py_None;
@@ -820,7 +845,8 @@ static PyObject *get_signed_transaction_fee_json(FIOT_RAW_DATA_OBJ *self, PyObje
 
    if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_GET_DPOW) {
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_NOT_FOUND_IN_INCOMING_DATA, self->f_last_error=PyC_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE)<0)
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_NOT_FOUND_IN_INCOMING_DATA,
+         self->f_last_error=PyC_ERR_UNABLE_GET_SIGNED_TRANSACTION_FEE)<0)
          return NULL;
 
       return Py_None;
@@ -830,7 +856,8 @@ static PyObject *get_signed_transaction_fee_json(FIOT_RAW_DATA_OBJ *self, PyObje
    if ((strnlen(s=((const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH)),
       JSON_TRANSACTION_FEE_BUF_SZ))==JSON_TRANSACTION_FEE_BUF_SZ) {
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_INVALID_JSON_IN_INCOMING_DATA, self->f_last_error=PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL)<0)
+      if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_INVALID_JSON_IN_INCOMING_DATA,
+         self->f_last_error=PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL)<0)
          return NULL;
 
       s=NULL;
@@ -1535,7 +1562,7 @@ static PyObject *set_onerror(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *
 
    self->fc_onerror=fobj;
 
-   if ((self->f_last_error=check_is_callable(self, &self->fc_onerror)))
+   if ((self->f_last_error=check_is_callable(&self->fc_onerror)))
       return NULL;
 
    return PyLong_FromLong((long int)self->f_last_error);
@@ -1559,7 +1586,7 @@ static PyObject *set_onreceivedfromclient(FIOT_RAW_DATA_OBJ *self, PyObject *arg
 
    self->fc_ondata=fobj;
 
-   if ((self->f_last_error=check_is_callable(self, &self->fc_ondata)))
+   if ((self->f_last_error=check_is_callable(&self->fc_ondata)))
       return NULL;
 
    return PyLong_FromLong((long int)self->f_last_error);
@@ -1583,7 +1610,7 @@ static PyObject *set_onsendtoclient(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
 
    self->fc_onsentdata=fobj;
 
-   if ((self->f_last_error=check_is_callable(self, &self->fc_onsentdata)))
+   if ((self->f_last_error=check_is_callable(&self->fc_onsentdata)))
       return NULL;
 
    return PyLong_FromLong((long int)self->f_last_error);
