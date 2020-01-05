@@ -11,29 +11,67 @@ import fiot as fenixprotocol
 
 #Sáb 04 Jan 2020 22:32:53 -03
 
+debug=True
+
 ################## ENCODING BEGIN ######################
 
 os_encoding=locale.getpreferredencoding()
 
 ########## Fenix-IoT Nano DPoW service begin ###########
 
+def fenix_debug(prot):
+
+    global debug
+
+    if (debug):
+        if (hasattr(prot, "s0")):
+            print("s0:")
+            print(prot.s0)
+        if (hasattr(prot, "s1")):
+            print("s1:")
+            print(prot.s1)
+        if (hasattr(prot, "s2")):
+            print("s2:")
+            print(prot.s2)
+        if (hasattr(prot, "s3")):
+            print("s3:")
+            print(prot.s3)
+        if (hasattr(prot, "s4")):
+            print("s4:")
+            print(prot.s4)
+        if (hasattr(prot, "s5")):
+            print("s5:")
+            print(prot.s5)
+        if (hasattr(prot, "s6")):
+            print("s6:")
+            print(prot.s6)
+        if (hasattr(prot, "s7")):
+            print("s7:")
+            print(prot.s7)
+        if (hasattr(prot, "s8")):
+            print("s8:")
+            print(prot.s8)
+        if (hasattr(prot, "s9")):
+            print("s9:")
+            print(prot.s9)
+
 def fenix_onerror(e):
+
     if (e):
+
         print("Error: "+str(e.err))
         print("Error name: "+e.errname)
         print("Reason: "+e.msg)
+        type(e.errname)
+
     else:
+
         print("\nUnknown error\n")
 
 def fenix_onreceive(protocol):
-    command=protocol.s0
-    data_type=protocol.s1
-    data_size=protocol.s2
-    protocol_version=protocol.s3
-    last_msg_id=protocol.s4
-    prot_timestamp=protocol.s5
-    publish_callback=protocol.s6
-    rawdata=protocol.s7
+
+    fenix_debug(protocol)
+
     ret=None
 
     if (command==fenixprotocol.CMD_GET_RAW_BALANCE):
@@ -61,6 +99,17 @@ def fenix_onreceive(protocol):
     else:
         print("Data not sent to client '"+publish_callback+"' with request "+msg)
         msg="Fail"
+        err=fenixiot.getlasterror()
+        print("Trying to send error reasons to client ...")
+        if ((err==fenixprotocol.F_ERR_FORBIDDEN_OVFL_PUBL_STR)or(err==fenixprotocol.F_ERR_FORBIDDEN_NULL_PUB_STR)):
+            print("Could not send error to client. Invalid publish callback "+fenixprotocol.geterrorname(err))
+        else:
+            ret=senderrortoclient(None, err, "Error with name: "+fenixprotocol.geterrorname(err))
+            if (ret):
+                client.publish(publish_callback, payload=ret, qos=2, retain=False)
+            else:
+                err=fenixiot.getlasterror()
+                print("Sencond fail when sending error reason to client "+str(err)+" Error name: " + fenixprotocol.geterrorname(err))
 
     print("Finishing with "+msg)
 
@@ -75,8 +124,7 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe("test/nanodpow", 2)
 
 def on_message(client, userdata, msg):
-    print("Received message '" + str(msg.payload) + "' on topic '"
-        + msg.topic + "' with QoS " + str(msg.qos))
+    print("Received message '"+str(msg.payload)+"' on topic '"+msg.topic+"' with QoS "+str(msg.qos))
     fenixiot.getdataprotocol(msg.payload)
 
 client=mqtt.Client(client_id="fiot_mqtt_gateway", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")

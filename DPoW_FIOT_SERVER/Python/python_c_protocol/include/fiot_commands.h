@@ -41,6 +41,8 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 //}
 //
 /////////////////////////////////
+#define CMD_SEND_ERROR_MSG_TO_CLIENT (uint32_t)((5<<1)|1)
+
 
 // Client CMD's
 #define CMD_GET_RAW_BALANCE (uint32_t)(CMD_SEND_RAW_BALANCE_TO_CLIENT^0x00000001)
@@ -70,7 +72,13 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // representative: representative (string)
 //}
 //
-#define LAST_COMMAND CMD_SEND_REPRESENTATIVE_TO_CLIENT
+#define LAST_COMMAND CMD_SEND_ERROR_MSG_TO_CLIENT
+//pub_add: Publish addrs
+//raw_data{
+// error: uint32
+// reason: string
+//}
+//
 
 ///////////////////////////////
 

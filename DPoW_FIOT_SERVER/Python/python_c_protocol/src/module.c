@@ -72,7 +72,8 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_CANT_PARSE_INTERNAL_ARGUMENTS", PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS},
    {"F_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS", PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS},
    {"F_ERR_FORBIDDEN_OVFL_PUBL_STR", PyC_ERR_FORBIDDEN_OVFL_PUBL_STR},
-   {"F_ERR_FORBIDDEN_NULL_PUB_STR", PyC_ERR_FORBIDDEN_NULL_PUB_STR}
+   {"F_ERR_FORBIDDEN_NULL_PUB_STR", PyC_ERR_FORBIDDEN_NULL_PUB_STR},
+   {"F_ERR_CANT_ADD_MSG_TO_ERROR_SENDER", PyC_ERR_CANT_ADD_MSG_TO_ERROR_SENDER}
 
 };
 
@@ -184,18 +185,18 @@ static void delete_slots_util(PyObject **obj)
 
 }
 
-static char *geterrorname_util(FPYC_ERR errname)
+static const char *geterrorname_util(FPYC_ERR errname)
 {
 
    size_t i;
-   char *p=NULL;
+   static const char *p="Unknown error index";
 
    for (i=0;i<ERR_CONST_INDEX;i++) {
 
       if (ERR_CONST[i].value^errname)
          continue;
 
-      p=(char *)ERR_CONST[i].name;
+      p=ERR_CONST[i].name;
 
       break;
 
@@ -925,7 +926,7 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    if ((self->f_last_error=valid_nano_wallet((const char *)p))) {
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET, self->f_last_error)<0)
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, self->f_last_error)<0)
          ret=NULL;
 
       goto set_raw_balance_EXIT1;
@@ -1084,7 +1085,7 @@ static PyObject *set_frontier(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    if ((self->f_last_error=valid_nano_wallet((const char *)p))) {
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET, self->f_last_error)<0)
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, self->f_last_error)<0)
          ret=NULL;
 
       goto set_frontier_EXIT1;
@@ -1244,7 +1245,7 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
 
    if ((self->f_last_error=valid_nano_wallet((const char *)p))) {
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET, self->f_last_error)<0)
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, self->f_last_error)<0)
          ret=NULL;
 
       goto send_dpow_EXIT1;
@@ -1408,7 +1409,7 @@ static PyObject *send_representative(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    if ((self->f_last_error=valid_nano_wallet((const char *)p))) {
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET, self->f_last_error)<0)
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, self->f_last_error)<0)
          ret=NULL;
 
       goto send_representative_EXIT1;
@@ -1637,7 +1638,6 @@ static PyObject *geterrorname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 {
    static char *kwlist[] = {"errname", NULL};
    int errname;
-   const char *p;
 
    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i", kwlist, &errname)) {
 
@@ -1648,7 +1648,7 @@ static PyObject *geterrorname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject 
 
    }
 
-   return Py_BuildValue("s", (p=(const char *)geterrorname_util(errname))?(p):("Unknown error index"));
+   return Py_BuildValue("s", geterrorname_util(errname));
 
 }
 
@@ -1754,6 +1754,103 @@ static PyObject *get_command_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObjec
 
 }
 
+#define MSG_ERR_CLIENT_MAX_SZ (size_t)(F_NANO_TRANSACTION_RAW_DATA_SZ_MAX-sizeof(uint32_t))
+static PyObject *send_error_to_client(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+   static char *kwlist[] = {"publish", "error", "reason", NULL};
+   char *pub_addr, *reason;
+   unsigned int error;
+   F_NANO_HW_TRANSACTION *buf;
+   size_t sz_tmp;
+   void *p;
+   PyObject *ret;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zIz", kwlist, &pub_addr, &error, &reason)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      self->f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
+
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_ALLOC_BUFFER, self->f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return PyLong_FromLong((long int)self->f_last_error);
+
+      return NULL;
+
+   }
+
+   buf->hdr.command=CMD_SEND_ERROR_MSG_TO_CLIENT;
+   buf->hdr.raw_data_type=F_RAW_DATA_TYPE_RAW_DATA;
+
+   ret=Py_None;
+
+   if (!(p=(void *)pub_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str));
+
+   if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, self->f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         ret=NULL;
+
+      goto send_error_to_client_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, self->f_last_error=PyC_ERR_EMPTY_STR)<0)
+         ret=NULL;
+
+      goto send_error_to_client_EXIT1;
+
+   }
+
+   strncpy((char *)buf->hdr.publish_str, (const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ);
+   sz_tmp=0;
+
+   if (reason) {
+
+      if ((sz_tmp=strnlen((const char *)reason, MSG_ERR_CLIENT_MAX_SZ))==MSG_ERR_CLIENT_MAX_SZ) {
+
+         if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, self->f_last_error=PyC_ERR_CANT_ADD_MSG_TO_ERROR_SENDER)<0)
+            ret=NULL;
+
+         goto send_error_to_client_EXIT1;
+
+      } else if (sz_tmp) {
+         strcpy((char *)(buf->rawdata+sizeof(uint32_t)), (const char *)reason);
+         sz_tmp++;
+      }
+
+   }
+
+   *(uint32_t *)(buf+offsetof(F_NANO_HW_TRANSACTION, rawdata))=(uint32_t)error;
+   buf->hdr.raw_data_sz=sizeof(uint32_t)+sz_tmp;
+
+   if ((self->f_last_error=prepare_command(buf, NULL))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, self->f_last_error)<0)
+         ret=NULL;
+
+      goto send_error_to_client_EXIT1;
+
+   }
+
+   self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR));
+
+   ret=Py_BuildValue("y#", (const void *)memcpy((void *)self->sent_raw_data, (void *)buf, (size_t)self->sent_raw_data_sz),
+      (Py_ssize_t)self->sent_raw_data_sz);
+
+send_error_to_client_EXIT1:
+   memset(buf, 0, F_NANO_TRANSACTION_MAX_SZ);
+   free(buf);
+
+   return ret;
+
+}
+
 static PyMethodDef mMethods[] = {
     {"about", about, METH_NOARGS, "About"},
     {"geterrorname", (PyCFunction)geterrorname, METH_VARARGS|METH_KEYWORDS,
@@ -1801,6 +1898,8 @@ static PyMethodDef fiot_methods[] = {
        "On receive data event from Fenix-IoT client. Set a callable function here"},
     {"onsentdata", (PyCFunction)set_onsendtoclient, METH_VARARGS|METH_KEYWORDS,
        "On send data event to Fenix-IoT client. Set a callable function here"},
+    {"senderrortoclient", (PyCFunction)send_error_to_client, METH_VARARGS|METH_KEYWORDS,
+       "Send error to client. Returns None or Raw data"},
     {NULL, NULL, 0, NULL}
 
 };
