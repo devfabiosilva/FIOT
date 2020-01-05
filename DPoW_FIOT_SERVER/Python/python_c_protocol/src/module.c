@@ -515,12 +515,14 @@ static PyObject *getincomingmessage(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
       return PyLong_FromLong((long int)self->f_last_error);
 
    }
-
+/*
    if ((self->f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)))
       if (f_set_error_no_raise_util(self, MSG_ERR_GET_INCOMING_MESSAGE_UTIL_FC, self->f_last_error)<0)
          return NULL;
 
    return PyLong_FromLong((long int)self->f_last_error);
+*/
+   return PyLong_FromLong((long int)(self->f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)));
 
 }
 
