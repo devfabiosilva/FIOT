@@ -20,9 +20,7 @@ os_encoding=locale.getpreferredencoding()
 ########## Fenix-IoT Nano DPoW service begin ###########
 
 def fenix_debug(prot):
-
     global debug
-
     if (debug):
         if (hasattr(prot, "s0")):
             print("s0:")
@@ -56,26 +54,28 @@ def fenix_debug(prot):
             print(prot.s9)
 
 def fenix_onerror(e):
-
     if (e):
-
         print("Error: "+str(e.err))
         print("Error name: "+e.errname)
         print("Reason: "+e.msg)
         type(e.errname)
-
     else:
-
         print("\nUnknown error\n")
 
 def fenix_onreceive(protocol):
-
     fenix_debug(protocol)
-
+    if (hasattr(protocol, "s0")):
+        command=protocol.s0
+    else:
+        command=None
+    if (hasattr(protocol, "s6")):
+        publish_callback=protocol.s6
+    else:
+        publish_callback=None
     ret=None
-
+    msg=""
     if (command==fenixprotocol.CMD_GET_RAW_BALANCE):
-        ret=fenixiot.set_raw_balance(None, None, "12345678901234567890")
+        ret=fenixiot.set_raw_balance(None, None, "0001200010000000000000000000000000")
         if (ret==None):
             msg="CMD_GET_RAW_BALANCE"
     elif (command==fenixprotocol.CMD_GET_FRONTIER):
@@ -92,7 +92,6 @@ def fenix_onreceive(protocol):
             msg="CMD_GET_REPRESENTATIVE"
     else:
         msg="UNKNOWN_COMMAND"
-
     if (ret):
         client.publish(publish_callback, payload=ret, qos=2, retain=False)
         msg="Success"
@@ -109,8 +108,7 @@ def fenix_onreceive(protocol):
                 client.publish(publish_callback, payload=ret, qos=2, retain=False)
             else:
                 err=fenixiot.getlasterror()
-                print("Sencond fail when sending error reason to client "+str(err)+" Error name: " + fenixprotocol.geterrorname(err))
-
+                print("Sencond fail when sending error reason to client "+str(err)+" Error name: "+fenixprotocol.geterrorname(err))
     print("Finishing with "+msg)
 
 fenixiot=fenixprotocol.init(None)
@@ -121,7 +119,7 @@ fenixiot.ondata(fenix_onreceive)
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
-    client.subscribe("test/nanodpow", 2)
+    client.subscribe("test/dpow", 2)
 
 def on_message(client, userdata, msg):
     print("Received message '"+str(msg.payload)+"' on topic '"+msg.topic+"' with QoS "+str(msg.qos))

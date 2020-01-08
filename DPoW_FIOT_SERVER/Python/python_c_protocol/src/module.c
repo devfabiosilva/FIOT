@@ -1943,7 +1943,6 @@ PyMODINIT_FUNC PyInit_fiot(void)
    if (PyType_Ready(&FIOT_RAW_DATA_OBJ_type)<0) {
 
       PyErr_SetString(PyExc_Exception, "\n\"FIOT_RAW_DATA_OBJ_type\" is not available\n");
-      //f_last_error=PyC_ERR_DATA_OBJ_NOT_READY;
 
       return NULL;
 
