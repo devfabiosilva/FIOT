@@ -75,7 +75,7 @@ def fenix_onreceive(protocol):
     ret=None
     msg=""
     if (command==fenixprotocol.CMD_GET_RAW_BALANCE):
-        ret=fenixiot.set_raw_balance(None, None, "0001200010000000000000000000000000")
+        ret=fenixiot.set_raw_balance(None, None, "50000000000000000000000000001")
         if (ret==None):
             msg="CMD_GET_RAW_BALANCE"
     elif (command==fenixprotocol.CMD_GET_FRONTIER):
@@ -83,9 +83,16 @@ def fenix_onreceive(protocol):
         if (ret==None):
             msg="CMD_GET_FRONTIER"
     elif (command==fenixprotocol.CMD_GET_DPOW):
-        ret=fenixiot.send_dpow(None, None, "1cf5dad7e7f75f878be7cebe792484a2ec252dc4e9c5fad165dafd133c9fcd19", 0xc158c4ed567661cd)
-        if (ret==None):
-            msg="CMD_GET_DPOW"
+        hash_str=fenixiot.get_dpow_hash_from_client()
+        if (hash_str!=None):
+            ret=fenixiot.send_dpow(None, None, hash_str, 0xc158c4ed567661cd)
+            if (ret==None):
+                msg="CMD_GET_DPOW"
+            else:
+                print("Return (raw data to send): ->")
+                print(list(ret))
+        else:
+            msg="get_dpow_hash_from_client()"
     elif (command==fenixprotocol.CMD_GET_REPRESENTATIVE):
         ret=fenixiot.send_representative(None, None, "xrb_1cb5fs7xmixqzpitfn9ouy4j1g3hjmdfudc1igt5xhwwps7qdku5htqxmznb")
         if (ret==None):
