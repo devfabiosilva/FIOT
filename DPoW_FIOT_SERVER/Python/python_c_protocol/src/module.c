@@ -1762,13 +1762,13 @@ static PyObject *send_error_to_client(FIOT_RAW_DATA_OBJ *self, PyObject *args, P
 {
    static char *kwlist[] = {"publish", "error", "reason", NULL};
    char *pub_addr, *reason;
-   unsigned int error;
+   uint32_t error;
    F_NANO_HW_TRANSACTION *buf;
    size_t sz_tmp;
    void *p;
    PyObject *ret;
 
-   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zIz", kwlist, &pub_addr, &error, &reason)) {
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zIz", kwlist, &pub_addr, (unsigned int *)&error, &reason)) {
 
       PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
       self->f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
@@ -1829,7 +1829,8 @@ static PyObject *send_error_to_client(FIOT_RAW_DATA_OBJ *self, PyObject *args, P
 
    }
 
-   *(uint32_t *)(buf+offsetof(F_NANO_HW_TRANSACTION, rawdata))=(uint32_t)error;
+   memcpy(buf->rawdata, &error, sizeof(uint32_t));
+
    buf->hdr.raw_data_sz=sizeof(uint32_t)+sz_tmp;
 
    if ((self->f_last_error=prepare_command(buf, NULL))) {

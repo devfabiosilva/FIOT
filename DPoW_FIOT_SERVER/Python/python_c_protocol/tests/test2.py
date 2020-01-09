@@ -75,7 +75,7 @@ def fenix_onreceive(protocol):
     ret=None
     msg=""
     if (command==fenixprotocol.CMD_GET_RAW_BALANCE):
-        ret=fenixiot.set_raw_balance(None, None, "50000000000000000000000000001")
+        ret=fenixiot.set_raw_balance(None, None, "5000000000000000000000000000")
         if (ret==None):
             msg="CMD_GET_RAW_BALANCE"
     elif (command==fenixprotocol.CMD_GET_FRONTIER):
@@ -110,7 +110,7 @@ def fenix_onreceive(protocol):
         if ((err==fenixprotocol.F_ERR_FORBIDDEN_OVFL_PUBL_STR)or(err==fenixprotocol.F_ERR_FORBIDDEN_NULL_PUB_STR)):
             print("Could not send error to client. Invalid publish callback "+fenixprotocol.geterrorname(err))
         else:
-            ret=senderrortoclient(None, err, "Error with name: "+fenixprotocol.geterrorname(err))
+            ret=fenixiot.senderrortoclient(None, err, "Error with name: "+fenixprotocol.geterrorname(err))
             if (ret):
                 client.publish(publish_callback, payload=ret, qos=2, retain=False)
             else:
