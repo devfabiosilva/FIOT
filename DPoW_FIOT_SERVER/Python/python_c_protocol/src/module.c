@@ -312,6 +312,7 @@ static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, siz
 {
 
    FPYC_ERR err;
+   uint32_t sz_tmp;
 
    if (data_sz>F_NANO_TRANSACTION_MAX_SZ) {
 
@@ -350,16 +351,18 @@ static FPYC_ERR getincomingmessage_util(FIOT_RAW_DATA_OBJ *self, void *data, siz
 
    if (self->fc_ondata) {
 
+      sz_tmp=*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_sz));
+
       if (!f_parse_args_util(self->fc_ondata, "0I1I2I3I4I5L6s7v",
          *(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)),
          (uint32_t)(*(uint16_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_type))),
-         *(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_sz)),
+         sz_tmp,
          *(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, version)),
          *(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, last_msg_id)),
          *(uint64_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, timestamp)),
          self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str),
          self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata),
-         self->raw_data_sz)) {
+         (size_t)sz_tmp)) {
 
          f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS, err=PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS);
 
