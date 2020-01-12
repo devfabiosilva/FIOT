@@ -11,10 +11,11 @@ import fiot as fenixprotocol
 import requests
 import json
 import asyncio
+import urllib3
 
 #Qui 09 Jan 2020 22:40:39 -03 
 
-debug=False
+debug=True
 
 ################## ENCODING BEGIN ######################
 
@@ -93,14 +94,53 @@ def fenix_onreceive(protocol):
                 if (res.status_code==200):
                     try:
                         k=res.json()
+                    except Exception as e:
+                        k=None
+                        err=10002
+                        errorname="Error: Can't parse NANO node JSON "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+                    if (k):
                         if ('balance' in k):
                             balance=k['balance']
-                            print("Sucesso")
-                            ret=fenixiot.set_raw_balance(None, None, k['balance'])
+                            ret=fenixiot.set_raw_balance(None, None, balance)
                             if (ret==None):
                                 msg="CMD_GET_RAW_BALANCE"
                                 err=fenixiot.getlasterror()
-                                errorname=fenixiot.geterrorname(err)
+                                errorname=fenixprotocol.geterrorname(err)
+                        elif ('error' in k):
+                            err=10003
+                            errorname="Error: NANO error "+k['error']+". Error no.: "+str(err)
+                        else:
+                            err=10004
+                            errorname="Error: NANO error unknown JSON param. Error no.: "+str(err)
+
+                else:
+                    err=10001
+                    errorname="Error: NANO node status code: "+str(res.status_code)
+        else:
+            err=10005
+            errorname="Error: Empty slot 7 fatal error "+str(err)
+    elif (command==fenixprotocol.CMD_GET_FRONTIER):
+        if (hasattr(protocol, "s7")):
+            wallet=protocol.s7.decode('ascii').rstrip('\0')
+            parm='{"action":"accounts_frontiers","accounts":["'+wallet+'"]}'
+            loop=asyncio.get_event_loop()
+            try:
+                res=loop.run_until_complete(nano_node_srv(data=parm))
+            except Exception as e:
+                err=10000
+                errorname="Error: 'nano_node_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+            if (res):
+                frontier=""
+                if (res.status_code==200):
+                    try:
+                        k=res.json()
+                        if ('frontiers' in k):
+                            myfrontier=k['frontiers']
+                            for m in myfrontier:
+                                frontier=myfrontier[m]
+                                break
+                            if (frontier==""):
+                                frontier="0000000000000000000000000000000000000000000000000000000000000000"
                         elif ('error' in k):
                             err=10003
                             errorname="Error: NANO error "+k['error']+" Error no.: "+str(err)
@@ -113,31 +153,80 @@ def fenix_onreceive(protocol):
                 else:
                     err=10001
                     errorname="Error: NANO node status code: "+str(res.status_code)
+                if (frontier!=""):
+                    ret=fenixiot.set_frontier(None, None, frontier)
+                    if (ret==None):
+                        msg="CMD_GET_FRONTIER"
+                        err=fenixiot.getlasterror()
+                        errorname=fenixprotocol.geterrorname(err)
         else:
             err=10005
             errorname="Error: Empty slot 7 fatal error "+str(err)
-    elif (command==fenixprotocol.CMD_GET_FRONTIER):
-        ret=fenixiot.set_frontier(None, None, "cb9850660e23e03205c2582875e9af3b2e8d075aeab5889de16bdc7cc76e5ef7")
-        if (ret==None):
-            msg="CMD_GET_FRONTIER"
     elif (command==fenixprotocol.CMD_GET_DPOW):
         hash_str=fenixiot.get_dpow_hash_from_client()
         if (hash_str!=None):
-            ret=fenixiot.send_dpow(None, None, hash_str, 0xc158c4ed567661cd)
-            if (ret==None):
-                msg="CMD_GET_DPOW"
-            else:
-                print("Return (raw data to send): ->")
-                print(list(ret))
+            loop=asyncio.get_event_loop()
+            res=None
+            try:
+                res=loop.run_until_complete(dpow_local_srv(data=hash_str))
+            except Exception as e:
+                err=10000
+                errorname="Error: 'dpow_local_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+            if (res):
+                if 'work' in res:
+                    ret=fenixiot.send_dpow(None, None, hash_str, res['work'])
+                    if (ret==None):
+                        msg="CMD_GET_DPOW"
+                        err=fenixiot.getlasterror()
+                        errorname=fenixprotocol.geterrorname(err)
+                if 'error' in res:
+                    msg="ERR_DPOW"
+                    err=10030
+                    errorname="Error: 'dpow_local_srv' -> "+res['error']
         else:
-                msg="get_dpow_hash_from_client()"
+                msg="get_dpow_hash_from_client() error"
+                err=fenixiot.getlasterror()
+                errorname=fenixprotocol.geterrorname(err)
     elif (command==fenixprotocol.CMD_GET_REPRESENTATIVE):
-        ret=fenixiot.send_representative(None, None, "xrb_1cb5fs7xmixqzpitfn9ouy4j1g3hjmdfudc1igt5xhwwps7qdku5htqxmznb")
-        if (ret==None):
-            msg="CMD_GET_REPRESENTATIVE"
+        if (hasattr(protocol, "s7")):
+            wallet=protocol.s7.decode('ascii').rstrip('\0')
+            parm='{"action":"account_representative","account":"'+wallet+'"}'
+            loop=asyncio.get_event_loop()
+            try:
+                res=loop.run_until_complete(nano_node_srv(data=parm))
+            except Exception as e:
+                err=10000
+                errorname="Error: 'nano_node_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+            if (res):
+                representative=""
+                if (res.status_code==200):
+                    try:
+                        k=res.json()
+                        if ('representative' in k):
+                            representative=k['representative']
+                        elif ('error' in k):
+                            err=10003
+                            errorname="Error: NANO error "+k['error']+" Error no.: "+str(err)
+                        else:
+                            err=10004
+                            errorname="Error: NANO error unknown JSON param. Error no.: "+str(err)
+                    except Exception as e:
+                        err=10002
+                        errorname="Error: Can't parse NANO node JSON "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+                else:
+                    err=10001
+                    errorname="Error: NANO node status code: "+str(res.status_code)
+                if (representative!=""):
+                    ret=fenixiot.send_representative(None, None, representative)
+                    if (ret==None):
+                        msg="CMD_GET_REPRESENTATIVE"
+                        err=fenixiot.getlasterror()
+                        errorname=fenixprotocol.geterrorname(err)
         else:
-            msg="UNKNOWN_COMMAND"
-
+            err=10005
+            errorname="Error: Empty slot 7 fatal error "+str(err)
+    else:
+        msg="UNKNOWN_COMMAND"
     if (ret):
         client.publish(publish_callback, payload=ret, qos=2, retain=False)
         msg="Success"
@@ -148,13 +237,13 @@ def fenix_onreceive(protocol):
         if ((err==fenixprotocol.F_ERR_FORBIDDEN_OVFL_PUBL_STR)or(err==fenixprotocol.F_ERR_FORBIDDEN_NULL_PUB_STR)):
             print("Could not send error to client. Invalid publish callback "+errorname)
         else:
+            print("ERROR NAME: "+errorname)
             ret=fenixiot.senderrortoclient(None, err, "Error with name: "+errorname)
             if (ret):
                 client.publish(publish_callback, payload=ret, qos=2, retain=False)
             else:
                 err=fenixiot.getlasterror()
                 print("Sencond fail when sending error reason to client "+str(err)+" Error name: "+fenixprotocol.geterrorname(err))
-
     print("Finishing with "+msg)
 
 print("Initializing FIOT Python 3 library ...")
@@ -167,8 +256,44 @@ print(fenixprotocol.about())
 
 NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
 
+
 async def nano_node_srv(data):
+   global NANO_NODE_URL
    return requests.post(url=NANO_NODE_URL,data=data)
+
+################## LOCAL DPOW TEST######################
+
+# TEST OK. YAY !!!
+# It works fine with nano-work-serve (install it if you want a local PoW https://github.com/nanocurrency/nano-work-server)
+DPOW_SERVER="[::1]:7076"
+DPOW_DIFFICULTY="ffffffc000000000" # Real difficulty (sloooowwww) for I3 Intel Core (16 to 50 seconds)
+#DPOW_DIFFICULTY="ffffc00000000000" # for testing (fast) for I3 Intel Core (38 to 380 ms)
+
+async def dpow_local_srv(data):
+    global DPOW_DIFFICULTY
+    http=urllib3.PoolManager()
+    #parm='{"action":"work_generate","hash":"'+data+'","difficulty":"'+DPOW_DIFFICULTY+'","multiplier":"1.0"}'
+    parm='{"action":"work_generate","hash":"'+data+'","difficulty":"'+DPOW_DIFFICULTY+'"}'
+    try:
+        r=http.request('POST', DPOW_SERVER, headers={'Content-Type': 'application/json'}, body=parm)
+    except Exception as e:
+        return {'error': 'Error when request encoded data <'+str(type(e))+'> Reason: '+str(e)}
+    try:
+        res=json.loads(r.data.decode('utf-8'))
+    except:
+        return {'error': 'Error "dpow_local_srv" when load decode data to JSON <'+str(type(e))+'> Reason: '+str(e)}
+    if 'work' in res:
+        try:
+            i=int(res['work'].encode('utf-8'), 16)
+            return {'work': i}
+        except Exception as e:
+            return {'error': 'Error "dpow_local_srv" when convert string to int <'+str(type(e))+'> Reason: '+str(e)}
+    elif 'error' in res:
+        msg_error=res['error']
+        if 'hint' in res:
+            msg_error+=' HINT: '+res['hint']
+        return {'error': msg_error}
+    return {'error': 'Unknown dpow_local_srv error'}
 
 ################### MQTT SERVICE BEGIN ##################
 
