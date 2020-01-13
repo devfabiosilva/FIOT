@@ -18,8 +18,6 @@
 #define MAX_STR_DATA_FRONTIER (size_t)65
 #define MAX_STR_DATA_HASH_VALUE (size_t)65
 
-#define MSG_ERR_INVALID_NANO_RAW_BALANCE "\nInvalid NANO Raw Balance. Is it a valid 128 bit big number?\n"
-
 int valid_nano_wallet(const char *);
 int valid_raw_balance(const char *);
 int f_str_to_hex(uint8_t *, const char *);

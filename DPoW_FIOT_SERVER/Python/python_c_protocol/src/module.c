@@ -878,14 +878,14 @@ static PyObject *get_signed_transaction_fee_json(FIOT_RAW_DATA_OBJ *self, PyObje
 static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
 {
 
-   static char *kwlist[] = {"nano", "publish", "balance", NULL};
-   char *buf_nano_addr, *pub_addr, *raw_balance;
+   static char *kwlist[] = {"nano", "publish", "balance", "pending", NULL};
+   char *buf_nano_addr, *pub_addr, *raw_balance, *raw_pending;
    F_NANO_HW_TRANSACTION *buf;
    size_t sz_tmp;
    void *p;
    PyObject *ret;
 
-   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zzs", kwlist, &buf_nano_addr, &pub_addr, &raw_balance)) {
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zzss", kwlist, &buf_nano_addr, &pub_addr, &raw_balance, &raw_pending)) {
 
       PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
       self->f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
@@ -937,7 +937,7 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
    }
 
    strncpy((char *)buf->rawdata, (const char *)p, MAX_STR_NANO_CHAR);
-
+/*
    if ((sz_tmp=(strnlen(raw_balance, MAX_STR_RAW_BALANCE_MAX)))==MAX_STR_RAW_BALANCE_MAX) {
 
       if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, self->f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
@@ -953,7 +953,7 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
       goto set_raw_balance_EXIT1;
 
    }
-
+*/
    if ((self->f_last_error=valid_raw_balance(raw_balance))) {
 
       if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_RAW_BALANCE, self->f_last_error)<0)
@@ -965,7 +965,18 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
    strncpy((char *)(buf->rawdata+MAX_STR_NANO_CHAR), raw_balance, MAX_STR_RAW_BALANCE_MAX);
 
-   buf->hdr.raw_data_sz=MAX_STR_NANO_CHAR+MAX_STR_RAW_BALANCE_MAX;
+   if ((self->f_last_error=valid_raw_balance(raw_pending))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_RAW_PENDING, self->f_last_error)<0)
+         ret=NULL;
+
+      goto set_raw_balance_EXIT1;
+
+   }
+
+   strncpy((char *)(buf->rawdata+MAX_STR_NANO_CHAR+MAX_STR_RAW_BALANCE_MAX), (const char *)raw_pending, MAX_STR_RAW_BALANCE_MAX);
+
+   buf->hdr.raw_data_sz=MAX_STR_NANO_CHAR+2*MAX_STR_RAW_BALANCE_MAX;
 
    if (!(p=(void *)pub_addr))
       p=(void *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str));
@@ -1003,8 +1014,8 @@ static PyObject *set_raw_balance(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObje
 
       ret=NULL;
 
-      if (!f_parse_args_util(self->fc_onsentdata, "0I1s2s3s4v", buf->hdr.command, buf->hdr.publish_str, buf->rawdata,
-         buf->rawdata+MAX_STR_NANO_CHAR, self->sent_raw_data, self->sent_raw_data_sz)) {
+      if (!f_parse_args_util(self->fc_onsentdata, "0I1s2s3s4s5v", buf->hdr.command, buf->hdr.publish_str, buf->rawdata,
+         buf->rawdata+MAX_STR_NANO_CHAR, buf->rawdata+MAX_STR_NANO_CHAR+MAX_STR_RAW_BALANCE_MAX, self->sent_raw_data, self->sent_raw_data_sz)) {
 
          f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS, self->f_last_error=PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS);
 

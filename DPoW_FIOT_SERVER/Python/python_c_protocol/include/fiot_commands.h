@@ -16,6 +16,7 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 //raw_data{
 // nano_wallet: nano_wallet
 // balance: balance
+// pending: pending
 //}
 //
 #define CMD_SEND_FRONTIER_TO_CLIENT (uint32_t)((2<<1)|1)

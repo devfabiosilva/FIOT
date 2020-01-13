@@ -101,11 +101,16 @@ def fenix_onreceive(protocol):
                     if (k):
                         if ('balance' in k):
                             balance=k['balance']
-                            ret=fenixiot.set_raw_balance(None, None, balance)
-                            if (ret==None):
-                                msg="CMD_GET_RAW_BALANCE"
-                                err=fenixiot.getlasterror()
-                                errorname=fenixprotocol.geterrorname(err)
+                            if ('pending' in k):
+                                pending=k['pending']
+                                ret=fenixiot.set_raw_balance(None, None, balance, pending)
+                                if (ret==None):
+                                    msg="CMD_GET_RAW_BALANCE"
+                                    err=fenixiot.getlasterror()
+                                    errorname=fenixprotocol.geterrorname(err)
+                                else:
+                                    err=10006
+                                    errorname="Error missing Nano pending value. Error no.: "+str(err)
                         elif ('error' in k):
                             err=10003
                             errorname="Error: NANO error "+k['error']+". Error no.: "+str(err)
@@ -254,8 +259,7 @@ print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
 
-NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
-
+#NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
 
 async def nano_node_srv(data):
    global NANO_NODE_URL

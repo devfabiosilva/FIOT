@@ -109,4 +109,5 @@ typedef enum err_t {
 #define MSG_ERR_CANT_INIT_FIOT_PROT_MODULE "\nCan't init FIOT protocol module\n"
 #define MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS "\nCan't parse internal arguments in \"f_parse_args_util\" function\n"
 #define MSG_ERR_CANT_EXECUTE_FC_INTERNAL_ARGUMENTS "\nCan't execute function with parsed arguments via \"f_parse_args_util\" function\n"
-
+#define MSG_ERR_INVALID_NANO_RAW_BALANCE "\nInvalid NANO Raw Balance. Is it a valid 128 bit big number?\n"
+#define MSG_ERR_INVALID_NANO_RAW_PENDING "\nInvalid NANO Raw Pending. Is it a valid 128 bit big number?\n"

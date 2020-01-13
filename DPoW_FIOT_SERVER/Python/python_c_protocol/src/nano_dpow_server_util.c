@@ -222,14 +222,14 @@ int valid_nano_wallet(const char *wallet)
 
 }
 // 0 on success/ error=non zero
-#define MAX_RAW_STR_BALANCE_SZ (size_t)40//round up log10(2^128) + 1 (1 for null string)
+//#define MAX_RAW_STR_BALANCE_SZ (size_t)40//round up log10(2^128) + 1 (1 for null string)
 int valid_raw_balance(const char *balance)
 {
 
    int err;
    size_t balance_sz;
 
-   if ((balance_sz=strnlen(balance, MAX_RAW_STR_BALANCE_SZ))==MAX_RAW_STR_BALANCE_SZ)
+   if ((balance_sz=strnlen(balance, MAX_STR_RAW_BALANCE_MAX))==MAX_STR_RAW_BALANCE_MAX)
       return 2030;
 
    if (balance_sz==0)
