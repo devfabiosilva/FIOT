@@ -108,9 +108,9 @@ def fenix_onreceive(protocol):
                                     msg="CMD_GET_RAW_BALANCE"
                                     err=fenixiot.getlasterror()
                                     errorname=fenixprotocol.geterrorname(err)
-                                else:
-                                    err=10006
-                                    errorname="Error missing Nano pending value. Error no.: "+str(err)
+                            else:
+                                err=10006
+                                errorname="Error missing Nano pending value. Error no.: "+str(err)
                         elif ('error' in k):
                             err=10003
                             errorname="Error: NANO error "+k['error']+". Error no.: "+str(err)
@@ -189,9 +189,9 @@ def fenix_onreceive(protocol):
                     err=10030
                     errorname="Error: 'dpow_local_srv' -> "+res['error']
         else:
-                msg="get_dpow_hash_from_client() error"
-                err=fenixiot.getlasterror()
-                errorname=fenixprotocol.geterrorname(err)
+            msg="get_dpow_hash_from_client() error"
+            err=fenixiot.getlasterror()
+            errorname=fenixprotocol.geterrorname(err)
     elif (command==fenixprotocol.CMD_GET_REPRESENTATIVE):
         if (hasattr(protocol, "s7")):
             wallet=protocol.s7.decode('ascii').rstrip('\0')
@@ -258,8 +258,7 @@ fenixiot.ondata(fenix_onreceive)
 print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
-
-#NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
+NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
 
 async def nano_node_srv(data):
    global NANO_NODE_URL
