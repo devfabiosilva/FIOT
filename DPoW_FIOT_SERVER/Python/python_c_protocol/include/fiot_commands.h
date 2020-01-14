@@ -53,6 +53,13 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // block_hash: raw 32 bytes
 //}
 //
+#define CMD_SEND_BLOCK_STATE_TO_CLIENT (uint32_t)((7<<1)|1)
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano wallet (string)
+// block_hash: raw 32 bytes
+//}
+// ON ERROR -> CMD_SEND_ERROR_MSG_TO_CLIENT
 
 // Client CMD's
 #define CMD_GET_RAW_BALANCE (uint32_t)(CMD_SEND_RAW_BALANCE_TO_CLIENT^0x00000001)
@@ -87,7 +94,13 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 //raw_data{
 // nano_wallet: nano wallet (string)
 //}
-#define LAST_COMMAND CMD_SEND_NEXT_PENDING_TO_CLIENT
+#define CMD_GET_BLOCK_STATE_TO_CLIENT (uint32_t)(CMD_SEND_BLOCK_STATE_TO_CLIENT^0x00000001)
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano wallet (string)
+// block signed: JSON string
+//}
+#define LAST_COMMAND CMD_SEND_BLOCK_STATE_TO_CLIENT
 //pub_add: Publish addrs
 //raw_data{
 // error: uint32

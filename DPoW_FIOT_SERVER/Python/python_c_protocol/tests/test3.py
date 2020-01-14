@@ -302,6 +302,45 @@ def fenix_onreceive(protocol):
         else:
             err=10005
             errorname="Error: Empty slot 7 fatal error "+str(err)
+    elif (command==fenixprotocol.CMD_GET_BLOCK_STATE_TO_CLIENT):
+        ret=fenixiot.get_signed_json_block_from_fenixiot()
+        if (ret==None):
+            msg="CMD_GET_BLOCK_STATE_TO_CLIENT"
+            err=fenixiot.getlasterror()
+            errorname=fenixprotocol.geterrorname(err)
+        else:
+            loop=asyncio.get_event_loop()
+            res=None
+            try:
+                res=loop.run_until_complete(nano_node_srv(data=ret))
+            except Exception as e:
+                err=10000
+                errorname="Error: 'nano_node_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+            if (res):
+                block_hash=""
+                if (res.status_code==200):
+                    try:
+                        k=res.json()
+                        if ('hash' in k):
+                            block_hash=k['hash']
+                        elif ('error' in k):
+                            err=10003
+                            errorname="Error: NANO error "+k['error']+" Error no.: "+str(err)
+                        else:
+                            err=10004
+                            errorname="Error: NANO error unknown JSON param. Error no.: "+str(err)
+                    except Exception as e:
+                        err=10002
+                        errorname="Error: Can't parse NANO node JSON "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+                else:
+                    err=10001
+                    errorname="Error: NANO node status code: "+str(res.status_code)
+                if (block_hash!=""):
+                    ret=fenixiot.set_block_state(None, None, block_hash)
+                    if (ret==None):
+                        msg="CMD_GET_BLOCK_STATE_TO_CLIENT"
+                        err=fenixiot.getlasterror()
+                        errorname=fenixprotocol.geterrorname(err)
     else:
         err=10011
         errorname="Error: Unknown command "+str(err)
@@ -350,28 +389,27 @@ DPOW_DIFFICULTY="fffc000000000000" # for testing (fast) for I3 Intel Core (38 to
 async def dpow_local_srv(data):
     global DPOW_DIFFICULTY
     http=urllib3.PoolManager()
-    #parm='{"action":"work_generate","hash":"'+data+'","difficulty":"'+DPOW_DIFFICULTY+'","multiplier":"1.0"}'
     parm='{"action":"work_generate","hash":"'+data+'","difficulty":"'+DPOW_DIFFICULTY+'"}'
     try:
-        r=http.request('POST', DPOW_SERVER, headers={'Content-Type': 'application/json'}, body=parm)
+        r=http.request('POST', DPOW_SERVER, headers={'Content-Type':'application/json'}, body=parm)
     except Exception as e:
-        return {'error': 'Error when request encoded data <'+str(type(e))+'> Reason: '+str(e)}
+        return {'error':'Error when request encoded data <'+str(type(e))+'> Reason: '+str(e)}
     try:
         res=json.loads(r.data.decode('utf-8'))
     except:
-        return {'error': 'Error "dpow_local_srv" when load decode data to JSON <'+str(type(e))+'> Reason: '+str(e)}
+        return {'error':'Error "dpow_local_srv" when load decode data to JSON <'+str(type(e))+'> Reason: '+str(e)}
     if 'work' in res:
         try:
             i=int(res['work'].encode('utf-8'), 16)
             return {'work': i}
         except Exception as e:
-            return {'error': 'Error "dpow_local_srv" when convert string to int <'+str(type(e))+'> Reason: '+str(e)}
+            return {'error':'Error "dpow_local_srv" when convert string to int <'+str(type(e))+'> Reason: '+str(e)}
     elif 'error' in res:
         msg_error=res['error']
         if 'hint' in res:
             msg_error+=' HINT: '+res['hint']
         return {'error': msg_error}
-    return {'error': 'Unknown dpow_local_srv error'}
+    return {'error':'Unknown dpow_local_srv error'}
 
 ################### MQTT SERVICE BEGIN ##################
 

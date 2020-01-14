@@ -61,7 +61,10 @@ typedef enum err_t {
    PyC_ERR_FORBIDDEN_OVFL_PUBL_STR,
    PyC_ERR_FORBIDDEN_NULL_PUB_STR,
    PyC_ERR_CANT_ADD_MSG_TO_ERROR_SENDER,
-   PyC_ERR_NANO_BLOCK_INVALID_SIZE
+   PyC_ERR_NANO_BLOCK_INVALID_SIZE,
+   PyC_ERR_SIGNED_JSON_NOT_FOUND,
+   PyC_ERR_SIGNED_JSON_BLOCK_TOO_LARGE,
+   PyC_ERR_EMPTY_JSON_STR_BLK
 
 } FPYC_ERR;
 
@@ -116,4 +119,8 @@ typedef enum err_t {
 #define MSG_ERR_INVALID_NANO_RAW_AMOUNT "\nInvalid Nano raw amount\n"
 #define MSG_ERR_INVALID_BLOCK_SIZE "\nInvalid Block hash size\n"
 #define MSG_ERR_CANT_PARSE_BLOCK_VALUE "\nCan't parse BLOCK value\n"
+#define MSG_ERR_CANT_PARSE_TRANSACTION_HASH_VALUE "\nCan't parse signed HASH value block\n"
+#define MSG_ERR_SIGNED_JSON_BLOCK_NOT_FOUND "\nSigned JSON block not found in incoming data\n"
+#define MSG_ERR_SIGNED_JSON_BLOCK_TOO_LARGE "\nSigned JSON string too large. Try a small signed JSON block\n"
+#define MSG_ERR_EMPTY_SIGNED_JSON_STR "\nEmpty signed JSON string block\n"
 

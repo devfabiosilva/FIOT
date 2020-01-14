@@ -69,7 +69,7 @@ FPYC_ERR prepare_command(F_NANO_HW_TRANSACTION *buffer, void *raw_data)
    return PyC_ERR_OK;
 
 }
-
+// 0 -> server ; 1-> Fenix-IoT client
 FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *buffer, int is_incoming)
 {
    FPYC_ERR err;

@@ -74,7 +74,10 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_FORBIDDEN_OVFL_PUBL_STR", PyC_ERR_FORBIDDEN_OVFL_PUBL_STR},
    {"F_ERR_FORBIDDEN_NULL_PUB_STR", PyC_ERR_FORBIDDEN_NULL_PUB_STR},
    {"F_ERR_CANT_ADD_MSG_TO_ERROR_SENDER", PyC_ERR_CANT_ADD_MSG_TO_ERROR_SENDER},
-   {"F_ERR_NANO_BLOCK_INVALID_SIZE", PyC_ERR_NANO_BLOCK_INVALID_SIZE}
+   {"F_ERR_NANO_BLOCK_INVALID_SIZE", PyC_ERR_NANO_BLOCK_INVALID_SIZE},
+   {"F_ERR_SIGNED_JSON_NOT_FOUND", PyC_ERR_SIGNED_JSON_NOT_FOUND},
+   {"F_ERR_SIGNED_JSON_BLOCK_TOO_LARGE", PyC_ERR_SIGNED_JSON_BLOCK_TOO_LARGE},
+   {"F_ERR_EMPTY_JSON_STR_BLK", PyC_ERR_EMPTY_JSON_STR_BLK}
 
 };
 
@@ -564,7 +567,10 @@ static PyObject *getincomingmessage(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
       return PyLong_FromLong((long int)self->f_last_error);
 
    }
-
+//
+   self->raw_data_sz=0;
+   memset((void *)self->raw_data, 0, F_NANO_TRANSACTION_MAX_SZ);
+//
    return PyLong_FromLong((long int)(self->f_last_error=getincomingmessage_util(self, (void *)buf, (size_t)buf_sz)));
 
 }
@@ -1805,8 +1811,6 @@ static PyObject *set_next_pending_to_client(FIOT_RAW_DATA_OBJ *self, PyObject *a
    } else
       sz_tmp=0;
 
-printf("\n\n\nSize_tmp %d\n\n", (int)sz_tmp);
-
    buf->hdr.raw_data_sz=MAX_STR_NANO_CHAR+sz_tmp;
 
    if (!(p=(void *)pub_addr))
@@ -1878,6 +1882,146 @@ set_next_pending_to_client_EXIT1:
 
 }
 
+static PyObject *set_block_state_to_client(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+
+   static char *kwlist[] = {"nano", "publish", "onsuccess_hash", NULL};
+   char *buf_nano_addr, *pub_addr, *hash;
+   F_NANO_HW_TRANSACTION *buf;
+   size_t sz_tmp;
+   void *p;
+   PyObject *ret;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zzs", kwlist, &buf_nano_addr, &pub_addr, &hash)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      self->f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
+
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_ALLOC_BUFFER, self->f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
+
+      return NULL;
+
+   }
+
+   buf->hdr.command=CMD_SEND_BLOCK_STATE_TO_CLIENT;
+   buf->hdr.raw_data_type=F_RAW_DATA_TYPE_RAW_DATA;
+
+   if (!(p=(void *)buf_nano_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata));
+
+   ret=Py_None;
+
+   if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, self->f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         ret=NULL;
+
+      goto set_block_state_to_client_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, self->f_last_error=PyC_ERR_EMPTY_STR)<0)
+         ret=NULL;
+
+      goto set_block_state_to_client_EXIT1;
+
+   }
+
+   if ((self->f_last_error=valid_nano_wallet((const char *)p))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, self->f_last_error)<0)
+         ret=NULL;
+
+      goto set_block_state_to_client_EXIT1;
+
+   }
+
+   strncpy((char *)buf->rawdata, (const char *)p, MAX_STR_NANO_CHAR);
+
+   if ((sz_tmp=strnlen((const char *)hash, MAX_STR_DATA_HASH_VALUE))==MAX_STR_DATA_HASH_VALUE) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, self->f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         ret=NULL;
+
+      goto set_block_state_to_client_EXIT1;
+
+   } else if (sz_tmp^(MAX_STR_DATA_HASH_VALUE-1)) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_BLOCK_SIZE, self->f_last_error=PyC_ERR_NANO_BLOCK_INVALID_SIZE)<0)
+         ret=NULL;
+
+      goto set_block_state_to_client_EXIT1;
+
+   }
+
+   if ((self->f_last_error=f_str_to_hex((uint8_t *)(buf->rawdata+MAX_STR_NANO_CHAR), (const char *)hash))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_CANT_PARSE_TRANSACTION_HASH_VALUE, self->f_last_error)<0)
+         ret=NULL;
+
+      goto set_block_state_to_client_EXIT1;
+
+   }
+
+   buf->hdr.raw_data_sz=MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH;
+
+   if ((self->f_last_error=prepare_command(buf, NULL))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, self->f_last_error)<0)
+         ret=NULL;
+
+      goto set_block_state_to_client_EXIT1;
+
+   }
+
+   memcpy((void *)self->sent_raw_data, (const void *)buf, (size_t)(self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))));
+
+   if (self->fc_onsentdata) {
+
+      ret=NULL;
+
+      if (!f_parse_args_util(self->fc_onsentdata, "0I1s2s3v4s5v", self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, command),
+          self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str), self->sent_raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata),
+          self->sent_raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR, MAX_RAW_DATA_HASH,
+          fhex2strv2((char *)buf, (void *)self->sent_raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR, MAX_RAW_DATA_HASH, 1),
+          self->sent_raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata),
+          (uint32_t)*((uint32_t *)self->sent_raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_sz)))) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS, self->f_last_error=PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS);
+
+         goto set_block_state_to_client_EXIT1;
+
+      }
+
+      if (!(PyObject_CallFunctionObjArgs(self->fc_onsentdata, self->fc_onsentdata, NULL))) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_EXECUTE_FC_INTERNAL_ARGUMENTS, self->f_last_error=PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS);
+
+         goto set_block_state_to_client_EXIT1;
+
+      }
+
+      delete_slots_util(&self->fc_onsentdata);
+
+      ret=PyLong_FromLong((long int)(self->f_last_error=PyC_ERR_OK));
+
+   } else
+      ret=Py_BuildValue("y#", (const void *)self->sent_raw_data, (Py_ssize_t)self->sent_raw_data_sz);
+
+set_block_state_to_client_EXIT1:
+   memset(buf, 0, F_NANO_TRANSACTION_MAX_SZ);
+   free(buf);
+
+   return ret;
+
+}
 
 static F_COMMAND_CONSTANT FIOT_COMMAND[] = {
 
@@ -1889,7 +2033,8 @@ static F_COMMAND_CONSTANT FIOT_COMMAND[] = {
    {"CMD_GET_FRONTIER", CMD_GET_FRONTIER},
    {"CMD_GET_DPOW", CMD_GET_DPOW},
    {"CMD_GET_REPRESENTATIVE", CMD_GET_REPRESENTATIVE},
-   {"CMD_GET_NEXT_PENDING_ACCOUNT", CMD_GET_NEXT_PENDING_ACCOUNT}
+   {"CMD_GET_NEXT_PENDING_ACCOUNT", CMD_GET_NEXT_PENDING_ACCOUNT},
+   {"CMD_GET_BLOCK_STATE_TO_CLIENT", CMD_GET_BLOCK_STATE_TO_CLIENT}
 
 };
 #define FIOT_COMMAND_MAX_INDEX (size_t)(sizeof(FIOT_COMMAND)/sizeof(F_COMMAND_CONSTANT))
@@ -2001,7 +2146,7 @@ static PyObject *get_command_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObjec
 
    }
 
-   if ((self->f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->raw_data, 0))) {
+   if ((self->f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->raw_data, 1))) {
 
       if (f_set_error_no_raise_util(self, MSG_ERR_VERIFY_INCOMING_PROTOCOL, self->f_last_error)<0)
          return NULL;
@@ -2011,6 +2156,66 @@ static PyObject *get_command_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObjec
    }
 
    return PyLong_FromLong((long int)*((uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command))));
+
+}
+
+static PyObject *get_signed_json_block_from_fenixiot(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+
+   size_t sz_tmp;
+
+   if ((sz_tmp=(size_t)self->raw_data_sz)>F_NANO_TRANSACTION_MAX_SZ) {
+
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, self->f_last_error=PyC_ERR_MEM_OVFL)>0)
+         return Py_None;
+
+      return NULL;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_NULL_DATA, self->f_last_error=PyC_ERR_NULL_DATA)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((self->f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->raw_data, 1))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_VERIFY_INCOMING_PROTOCOL, self->f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_GET_BLOCK_STATE_TO_CLIENT) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_SIGNED_JSON_BLOCK_NOT_FOUND, self->f_last_error=PyC_ERR_SIGNED_JSON_NOT_FOUND)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((sz_tmp=strnlen((const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR),
+      (F_NANO_TRANSACTION_RAW_DATA_SZ_MAX-MAX_STR_NANO_CHAR)))==(F_NANO_TRANSACTION_RAW_DATA_SZ_MAX-MAX_STR_NANO_CHAR)) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_SIGNED_JSON_BLOCK_TOO_LARGE, self->f_last_error=PyC_ERR_SIGNED_JSON_BLOCK_TOO_LARGE)<0)
+         return NULL;
+
+      return Py_None;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_SIGNED_JSON_STR, self->f_last_error=PyC_ERR_EMPTY_JSON_STR_BLK)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   return Py_BuildValue("s", (const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR));
 
 }
 
@@ -2132,6 +2337,8 @@ static PyMethodDef fiot_methods[] = {
        "Returns data protocol with Nano cryptocurrency frontier with a given address"},
     {"set_next_pending", (PyCFunction)set_next_pending_to_client, METH_VARARGS|METH_KEYWORDS,
        "Returns next pending balance to a given Nano Wallet"},
+    {"set_block_state", (PyCFunction)set_block_state_to_client, METH_VARARGS|METH_KEYWORDS,
+       "Sets a signed block state and when success returns its hash"},
     {"send_dpow", (PyCFunction)send_dpow, METH_VARARGS|METH_KEYWORDS, "Returns data protocol with calculated hash DPoW of a given address"},
     {"send_representative", (PyCFunction)send_representative, METH_VARARGS|METH_KEYWORDS, "Returns Nano Wallet with its representative"},
     {"getdataprotocol", (PyCFunction)getincomingmessage, METH_VARARGS|METH_KEYWORDS, "Check and process protocol if success"},
@@ -2157,6 +2364,8 @@ static PyMethodDef fiot_methods[] = {
        "Returns FIOT COMMAND in sending raw data memory, if exists."},
     {"get_command_from_incoming_data", (PyCFunction)get_command_from_incoming_data, METH_NOARGS,
        "Returns FIOT COMMAND in incoming raw data memory, if exists."},
+    {"get_signed_json_block_from_fenixiot", (PyCFunction)get_signed_json_block_from_fenixiot, METH_NOARGS,
+       "Returns signed JSON block string in incoming raw data memory, if exists."},
     {"onerror", (PyCFunction)set_onerror, METH_VARARGS|METH_KEYWORDS,
        "On error event. Set a callable function here"},
     {"ondata", (PyCFunction)set_onreceivedfromclient, METH_VARARGS|METH_KEYWORDS,
