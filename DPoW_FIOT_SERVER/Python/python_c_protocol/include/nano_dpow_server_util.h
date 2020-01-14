@@ -9,7 +9,7 @@
 
 #define NANO_PREFIX "nano_"
 #define XRB_PREFIX "xrb_"
-
+#define LIST_STR_WALLET (size_t)56
 #define MAX_STR_NANO_CHAR (size_t)70 //5+56+8+1
 #define MAX_STR_RAW_BALANCE_MAX (size_t)40
 #define STR_NANO_SZ (size_t)66// 65+1 Null included
@@ -22,4 +22,5 @@ int valid_nano_wallet(const char *);
 int valid_raw_balance(const char *);
 int f_str_to_hex(uint8_t *, const char *);
 char *fhex2strv2(char *, const void *, size_t, int);
+int nano_base_32_2_hex(uint8_t *, const char *);
 

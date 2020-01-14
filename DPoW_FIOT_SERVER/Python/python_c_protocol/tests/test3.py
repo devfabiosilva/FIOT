@@ -81,10 +81,80 @@ def fenix_onreceive(protocol):
     err=0
     errorname=""
     parm=None
-    if (command==fenixprotocol.CMD_GET_RAW_BALANCE):
+    if (command==fenixprotocol.CMD_GET_NEXT_PENDING_ACCOUNT):
+        if (hasattr(protocol, "s7")):
+            wallet=protocol.s7.decode('ascii').rstrip('\0')
+            parm='{"action":"accounts_pending","accounts":["'+wallet+'"],"count":"1","source":"true"}'
+            loop=asyncio.get_event_loop()
+            res=None
+            try:
+                res=loop.run_until_complete(nano_node_srv(data=parm))
+            except Exception as e:
+                err=10000
+                errorname="Error: 'nano_node_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+            if (res):
+                if (res.status_code==200):
+                    try:
+                        k=res.json()
+                    except Exception as e:
+                        k=None
+                        err=10002
+                        errorname="Error: Can't parse NANO node JSON "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+                    if (k):
+                        if ('blocks' in k):
+                            k=k['blocks']
+                            for m in k:
+                                break
+                            if (k[m]==""):
+                                if (fenixprotocol.is_equivalent_and_valid(m, wallet)):
+                                    ret=fenixiot.set_next_pending(None, None, None, "", "")
+                                    if (ret==None):
+                                        msg="CMD_GET_NEXT_PENDING_ACCOUNT(None pending)"
+                                        err=fenixiot.getlasterror()
+                                        errorname=fenixprotocol.geterrorname(err)
+                                else:
+                                    err=10007
+                                    errorname="Error: Nano wallet "+wallet+" is different from "+m+". Error no.: "+str(err)
+                            elif (fenixprotocol.is_equivalent_and_valid(m, wallet)):
+                                k=k.pop(m)
+                                for m in k:
+                                    block_hash=m
+                                    k=k.pop(m)
+                                    break
+                                if 'amount' in k:
+                                    amount=k['amount']
+                                    if 'source' in k:
+                                        ret=fenixiot.set_next_pending(None, None, k['source'], amount, block_hash)
+                                        if (ret==None):
+                                            msg="CMD_GET_NEXT_PENDING_ACCOUNT"
+                                            err=fenixiot.getlasterror()
+                                            errorname=fenixprotocol.geterrorname(err)
+                                    else:
+                                        err=10010
+                                        errorname="Error: Source of pending amount not found. Error no.: "+str(err)
+                                else:
+                                    err=10008
+                                    errorname="Error: Pending amount not found. Error no.: "+str(err)
+                            else:
+                                err=10007
+                                errorname="Error: Nano wallet "+wallet+" is different from "+m+". Error no.: "+str(err)
+                        elif ('error' in k):
+                            err=10003
+                            errorname="Error: NANO error "+k['error']+". Error no.: "+str(err)
+                        else:
+                            err=10004
+                            errorname="Error: NANO error unknown JSON param. Error no.: "+str(err)
+                else:
+                    err=10001
+                    errorname="Error: NANO node status code: "+str(res.status_code)
+        else:
+            err=10005
+            errorname="Error: Empty slot 7 fatal error "+str(err)
+    elif (command==fenixprotocol.CMD_GET_RAW_BALANCE):
         if (hasattr(protocol, "s7")):
             parm='{"action":"account_balance","account":"'+protocol.s7.decode('ascii').rstrip('\0')+'"}'
             loop=asyncio.get_event_loop()
+            res=None
             try:
                 res=loop.run_until_complete(nano_node_srv(data=parm))
             except Exception as e:
@@ -129,6 +199,7 @@ def fenix_onreceive(protocol):
             wallet=protocol.s7.decode('ascii').rstrip('\0')
             parm='{"action":"accounts_frontiers","accounts":["'+wallet+'"]}'
             loop=asyncio.get_event_loop()
+            res=None
             try:
                 res=loop.run_until_complete(nano_node_srv(data=parm))
             except Exception as e:
@@ -197,6 +268,7 @@ def fenix_onreceive(protocol):
             wallet=protocol.s7.decode('ascii').rstrip('\0')
             parm='{"action":"account_representative","account":"'+wallet+'"}'
             loop=asyncio.get_event_loop()
+            res=None
             try:
                 res=loop.run_until_complete(nano_node_srv(data=parm))
             except Exception as e:
@@ -231,6 +303,8 @@ def fenix_onreceive(protocol):
             err=10005
             errorname="Error: Empty slot 7 fatal error "+str(err)
     else:
+        err=10011
+        errorname="Error: Unknown command "+str(err)
         msg="UNKNOWN_COMMAND"
     if (ret):
         client.publish(publish_callback, payload=ret, qos=2, retain=False)
@@ -258,7 +332,8 @@ fenixiot.ondata(fenix_onreceive)
 print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
-NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
+
+#NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
 
 async def nano_node_srv(data):
    global NANO_NODE_URL
@@ -269,8 +344,8 @@ async def nano_node_srv(data):
 # TEST OK. YAY !!!
 # It works fine with nano-work-serve (install it if you want a local PoW https://github.com/nanocurrency/nano-work-server)
 DPOW_SERVER="[::1]:7076"
-DPOW_DIFFICULTY="ffffffc000000000" # Real difficulty (sloooowwww) for I3 Intel Core (16 to 50 seconds)
-#DPOW_DIFFICULTY="ffffc00000000000" # for testing (fast) for I3 Intel Core (38 to 380 ms)
+#DPOW_DIFFICULTY="ffffffc000000000" # Real difficulty (sloooowwww) for I3 Intel Core (16 to 50 seconds)
+DPOW_DIFFICULTY="fffc000000000000" # for testing (fast) for I3 Intel Core (38 to 380 ms)
 
 async def dpow_local_srv(data):
     global DPOW_DIFFICULTY

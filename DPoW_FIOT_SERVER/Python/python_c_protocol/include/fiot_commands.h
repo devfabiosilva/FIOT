@@ -44,6 +44,15 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 /////////////////////////////////
 #define CMD_SEND_ERROR_MSG_TO_CLIENT (uint32_t)((5<<1)|1)
 
+#define CMD_SEND_NEXT_PENDING_TO_CLIENT (uint32_t)((6<<1)|1)
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano wallet (string)
+// sender_nano_wallet (source): nano wallet (string)
+// amout: raw (string)
+// block_hash: raw 32 bytes
+//}
+//
 
 // Client CMD's
 #define CMD_GET_RAW_BALANCE (uint32_t)(CMD_SEND_RAW_BALANCE_TO_CLIENT^0x00000001)
@@ -73,7 +82,12 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // representative: representative (string)
 //}
 //
-#define LAST_COMMAND CMD_SEND_ERROR_MSG_TO_CLIENT
+#define CMD_GET_NEXT_PENDING_ACCOUNT (uint32_t)(CMD_SEND_NEXT_PENDING_TO_CLIENT^0x00000001)
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano wallet (string)
+//}
+#define LAST_COMMAND CMD_SEND_NEXT_PENDING_TO_CLIENT
 //pub_add: Publish addrs
 //raw_data{
 // error: uint32

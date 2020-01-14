@@ -47,7 +47,7 @@ int f_reverse(unsigned char *val, size_t val_sz)
 
 }
 
-#define LIST_STR_WALLET (size_t)56
+//#define LIST_STR_WALLET (size_t)56
 int str_wallet_to_alphabet_index(uint8_t *list, const char *str_wallet, size_t str_sz)
 {
    int err;

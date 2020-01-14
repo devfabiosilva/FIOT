@@ -60,7 +60,8 @@ typedef enum err_t {
    PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS,
    PyC_ERR_FORBIDDEN_OVFL_PUBL_STR,
    PyC_ERR_FORBIDDEN_NULL_PUB_STR,
-   PyC_ERR_CANT_ADD_MSG_TO_ERROR_SENDER
+   PyC_ERR_CANT_ADD_MSG_TO_ERROR_SENDER,
+   PyC_ERR_NANO_BLOCK_INVALID_SIZE
 
 } FPYC_ERR;
 
@@ -111,3 +112,8 @@ typedef enum err_t {
 #define MSG_ERR_CANT_EXECUTE_FC_INTERNAL_ARGUMENTS "\nCan't execute function with parsed arguments via \"f_parse_args_util\" function\n"
 #define MSG_ERR_INVALID_NANO_RAW_BALANCE "\nInvalid NANO Raw Balance. Is it a valid 128 bit big number?\n"
 #define MSG_ERR_INVALID_NANO_RAW_PENDING "\nInvalid NANO Raw Pending. Is it a valid 128 bit big number?\n"
+#define MSG_ERR_INVALID_NANO_SENDER_ADDR "\nInvalid Nano sender address\n"
+#define MSG_ERR_INVALID_NANO_RAW_AMOUNT "\nInvalid Nano raw amount\n"
+#define MSG_ERR_INVALID_BLOCK_SIZE "\nInvalid Block hash size\n"
+#define MSG_ERR_CANT_PARSE_BLOCK_VALUE "\nCan't parse BLOCK value\n"
+
