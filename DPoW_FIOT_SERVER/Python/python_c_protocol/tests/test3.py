@@ -371,8 +371,7 @@ fenixiot.ondata(fenix_onreceive)
 print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
-
-#NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
+NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
 
 async def nano_node_srv(data):
    global NANO_NODE_URL

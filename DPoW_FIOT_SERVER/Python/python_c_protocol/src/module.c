@@ -904,16 +904,20 @@ static PyObject *get_signed_transaction_fee_json(FIOT_RAW_DATA_OBJ *self, PyObje
 
    }
 
-   if ((strnlen(s=((const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH)),
-      JSON_TRANSACTION_FEE_BUF_SZ))==JSON_TRANSACTION_FEE_BUF_SZ) {
+   s="";
 
-      if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_INVALID_JSON_IN_INCOMING_DATA,
-         self->f_last_error=PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL)<0)
-         return NULL;
+   if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_sz)))^(MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH))
+      if ((strnlen(s=((const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR+MAX_RAW_DATA_HASH)),
+         JSON_TRANSACTION_FEE_BUF_SZ))==JSON_TRANSACTION_FEE_BUF_SZ) {
 
-      s=NULL;
+         if (f_set_error_no_raise_util(self, MSG_ERR_GET_TRAN_FEE_INVALID_JSON_IN_INCOMING_DATA,
+            self->f_last_error=PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL)<0)
+            return NULL;
 
-   }
+         //s=NULL;
+         return Py_None;
+
+      }
 
    return Py_BuildValue("s", s);
 
