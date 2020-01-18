@@ -317,3 +317,29 @@ char *fhex2strv2(char *res, const void *buf, size_t buf_sz, int is_uppercase)
 
 }
 
+// return 1 if is filled with value or 0 if not
+int is_filled_with_value(uint8_t *value, size_t value_sz, uint8_t ch)
+{
+
+   int res=1;
+
+   for (;value_sz;) {
+
+      if (value[--value_sz]==ch)
+         continue;
+
+      res=0;
+
+      break;
+
+   }
+
+   return res;
+
+}
+
+inline int is_null_hash(uint8_t *hash)
+{
+   return is_filled_with_value(hash, MAX_RAW_DATA_HASH, 0);
+}
+

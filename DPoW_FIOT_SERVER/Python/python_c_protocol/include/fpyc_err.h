@@ -89,7 +89,6 @@ typedef enum err_t {
 #define MSG_ERR_OBJ_NOT_CALLABLE "\nObject is not callable\n"
 #define MSG_ERR_OBJ "\nObject should not be callable\n"
 #define MSG_ERR_DEL_ATTR "\nCan't delete attribute in \"f_set_error_util\"\n"
-//#define MSG_ERR_GET_INCOMING_MESSAGE_UTIL_FC "\nError in \"getincomingmessage_util\"\n"
 #define MSG_ERR_INCOMING_OUTCOMING_FC "\nError in \"verify_incoming_outcoming_raw_data_util\"\n"
 #define MSG_ERR_INVALID_NANO_WALLET_INCOMING "\nInvalid Nano Wallet in incoming data or Wallet not found\n"
 #define MSG_ERR_INVALID_NANO_WALLET_OUTCOMING "\nInvalid Nano Wallet in outcoming data or Wallet not found\n"

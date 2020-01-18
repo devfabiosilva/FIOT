@@ -594,7 +594,7 @@ static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
       if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_INCOMING, self->f_last_error)<0)
          return NULL;
 
-      s=NULL;
+      return Py_None;
 
    }
 
@@ -621,7 +621,7 @@ static PyObject *get_nano_addr_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObje
       if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, self->f_last_error)<0)
          return NULL;
 
-      s=NULL;
+      return Py_None;
 
    }
 
@@ -659,7 +659,7 @@ static PyObject *get_representative_addr_from_sending_data(FIOT_RAW_DATA_OBJ *se
       if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_REPRESENTATIVE, self->f_last_error)<0)
          return NULL;
 
-      s=NULL;
+      return Py_None;
 
    }
 
@@ -670,7 +670,7 @@ static PyObject *get_representative_addr_from_sending_data(FIOT_RAW_DATA_OBJ *se
 static PyObject *get_raw_balance_value_from_sending_data(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
-   const char *s=NULL;
+   const char *s;
 
    if ((self->f_last_error=verify_incoming_outcoming_raw_data_util(self, 0))) {
 
@@ -695,7 +695,7 @@ static PyObject *get_raw_balance_value_from_sending_data(FIOT_RAW_DATA_OBJ *self
       if (f_set_error_no_raise_util(self, MSG_ERR_GET_RAW_BALANCE_FROM_SENDING_DATA_NOT_VALID, self->f_last_error)<0)
          return NULL;
 
-      s=NULL;
+      return Py_None;
 
    }
 
@@ -860,6 +860,18 @@ static PyObject *get_dpow_hash_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
 
    }
 
+   if ((self->f_last_error=valid_nano_wallet((const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata))))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_INCOMING, self->f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if (is_null_hash((uint8_t *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR)))
+      return Py_BuildValue("s", "");
+
    if (!(s=malloc(2*MAX_RAW_DATA_HASH+1))) {
 
       if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, self->f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
@@ -914,7 +926,6 @@ static PyObject *get_signed_transaction_fee_json(FIOT_RAW_DATA_OBJ *self, PyObje
             self->f_last_error=PyC_ERR_INVALID_JSON_SZ_IN_FIOT_PROTOCOL)<0)
             return NULL;
 
-         //s=NULL;
          return Py_None;
 
       }
@@ -1375,7 +1386,6 @@ static PyObject *send_dpow(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kw
       goto send_dpow_EXIT1;
 
    }
-
 
    memcpy((void *)self->sent_raw_data, (const void *)buf, (size_t)(self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))));
 
@@ -2067,7 +2077,7 @@ static PyObject *getfiotcommandname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
    static char *kwlist[] = {"commandname", NULL};
    size_t i;
    int commandname;
-   const char *p;
+   const char *p="Unknown command name index";
 
    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i", kwlist, &commandname)) {
 
@@ -2077,8 +2087,6 @@ static PyObject *getfiotcommandname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
       return NULL;
 
    }
-
-   p=NULL;
 
    for (i=0;i<FIOT_COMMAND_MAX_INDEX;i++) {
 
@@ -2091,7 +2099,7 @@ static PyObject *getfiotcommandname(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyO
 
    }
 
-   return Py_BuildValue("s", (const char *)(p)?(p):("Unknown command name index"));
+   return Py_BuildValue("s", p);
 
 }
 

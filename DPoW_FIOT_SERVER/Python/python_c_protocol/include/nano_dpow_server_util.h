@@ -23,4 +23,6 @@ int valid_raw_balance(const char *);
 int f_str_to_hex(uint8_t *, const char *);
 char *fhex2strv2(char *, const void *, size_t, int);
 int nano_base_32_2_hex(uint8_t *, const char *);
+int is_filled_with_value(uint8_t *, size_t, uint8_t);
+int is_null_hash(uint8_t *hash);
 
