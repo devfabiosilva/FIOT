@@ -67,6 +67,7 @@ def fenix_onerror(e):
         print("\nUnknown error\n")
 
 def fenix_onreceive(protocol):
+    global NANO_PREFERED_REPRESENTATIVE
     fenix_debug(protocol)
     if (hasattr(protocol, "s0")):
         command=protocol.s0
@@ -302,10 +303,10 @@ def fenix_onreceive(protocol):
         else:
             err=10005
             errorname="Error: Empty slot 7 fatal error "+str(err)
-    elif (command==fenixprotocol.CMD_GET_BLOCK_STATE_TO_CLIENT):
+    elif (command==fenixprotocol.CMD_GET_BLOCK_STATE_FROM_CLIENT):
         ret=fenixiot.get_signed_json_block_from_fenixiot()
         if (ret==None):
-            msg="CMD_GET_BLOCK_STATE_TO_CLIENT"
+            msg="CMD_GET_BLOCK_STATE_FROM_CLIENT"
             err=fenixiot.getlasterror()
             errorname=fenixprotocol.geterrorname(err)
         else:
@@ -316,6 +317,7 @@ def fenix_onreceive(protocol):
             except Exception as e:
                 err=10000
                 errorname="Error: 'nano_node_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+            ret=None
             if (res):
                 block_hash=""
                 if (res.status_code==200):
@@ -338,9 +340,20 @@ def fenix_onreceive(protocol):
                 if (block_hash!=""):
                     ret=fenixiot.set_block_state(None, None, block_hash)
                     if (ret==None):
-                        msg="CMD_GET_BLOCK_STATE_TO_CLIENT"
+                        msg="CMD_GET_BLOCK_STATE_FROM_CLIENT"
                         err=fenixiot.getlasterror()
                         errorname=fenixprotocol.geterrorname(err)
+    elif (command==fenixprotocol.CMD_GET_PREF_REPRESENTATIVE):
+        if (NANO_PREFERED_REPRESENTATIVE!=""):
+            ret=fenixiot.send_preferred_representative(None, None, NANO_PREFERED_REPRESENTATIVE)
+            if (ret==None):
+                msg="CMD_GET_PREF_REPRESENTATIVE"
+                err=fenixiot.getlasterror()
+                errorname=fenixprotocol.geterrorname(err)
+        else:
+            err=10012
+            errorname="Error: No preferred representative"
+            msg="NANO_PREFERED_REPRESENTATIVE=EMPTY"
     else:
         err=10011
         errorname="Error: Unknown command "+str(err)
@@ -372,6 +385,7 @@ print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
 NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
+NANO_PREFERED_REPRESENTATIVE="nano_3ngt59dc7hbsjd1dum1bw9wbb87mbtuj4qkwcruididsb5rhgdt9zb4w7kb9"
 
 async def nano_node_srv(data):
    global NANO_NODE_URL
@@ -382,8 +396,8 @@ async def nano_node_srv(data):
 # TEST OK. YAY !!!
 # It works fine with nano-work-serve (install it if you want a local PoW https://github.com/nanocurrency/nano-work-server)
 DPOW_SERVER="[::1]:7076"
-#DPOW_DIFFICULTY="ffffffc000000000" # Real difficulty (sloooowwww) for I3 Intel Core (16 to 50 seconds)
-DPOW_DIFFICULTY="fffc000000000000" # for testing (fast) for I3 Intel Core (38 to 380 ms)
+DPOW_DIFFICULTY="ffffffc000000000" # Real difficulty (sloooowwww) for I3 Intel Core (16 to 50 seconds)
+#DPOW_DIFFICULTY="fffc000000000000" # for testing (fast) for I3 Intel Core (38 to 380 ms)
 
 async def dpow_local_srv(data):
     global DPOW_DIFFICULTY
