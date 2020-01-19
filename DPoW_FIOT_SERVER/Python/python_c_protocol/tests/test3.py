@@ -16,6 +16,7 @@ import urllib3
 #Qui 09 Jan 2020 22:40:39 -03 
 
 debug=True
+free_p2pow=True
 
 ################## ENCODING BEGIN ######################
 
@@ -68,6 +69,7 @@ def fenix_onerror(e):
 
 def fenix_onreceive(protocol):
     global NANO_PREFERED_REPRESENTATIVE
+    global free_p2pow
     fenix_debug(protocol)
     if (hasattr(protocol, "s0")):
         command=protocol.s0
@@ -242,24 +244,76 @@ def fenix_onreceive(protocol):
     elif (command==fenixprotocol.CMD_GET_DPOW):
         hash_str=fenixiot.get_dpow_hash_from_client()
         if (hash_str!=None):
-            loop=asyncio.get_event_loop()
-            res=None
-            try:
-                res=loop.run_until_complete(dpow_local_srv(data=hash_str))
-            except Exception as e:
-                err=10000
-                errorname="Error: 'dpow_local_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
-            if (res):
-                if 'work' in res:
-                    ret=fenixiot.send_dpow(None, None, hash_str, res['work'])
-                    if (ret==None):
-                        msg="CMD_GET_DPOW"
-                        err=fenixiot.getlasterror()
-                        errorname=fenixprotocol.geterrorname(err)
-                if 'error' in res:
-                    msg="ERR_DPOW"
-                    err=10030
-                    errorname="Error: 'dpow_local_srv' -> "+res['error']
+            transaction_fee=fenixiot.get_signed_trans_fee()
+            if (transaction_fee==None):
+                msg="get_signed_trans_fee() error"
+                err=fenixiot.getlasterror()
+                errorname=fenixprotocol.geterrorname(err)
+            elif ((not free_p2pow)and(transaction_fee=="")):
+                msg="ERR_P2POW_FEE_REQUIRED"
+                err=10031
+                errorname="Error: P2PoW fee required"
+            else:
+                if (hash_str==""):
+                    if (hasattr(protocol, "s7")):
+                        wallet=protocol.s7.decode('ascii').rstrip('\0')
+                        parm='{"action":"accounts_frontiers","accounts":["'+wallet+'"]}'
+                        loop=asyncio.get_event_loop()
+                        res=None
+                        try:
+                            res=loop.run_until_complete(nano_node_srv(data=parm))
+                        except Exception as e:
+                            err=10000
+                            errorname="Error: 'nano_node_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+                        if (res):
+                            frontier=""
+                            if (res.status_code==200):
+                                try:
+                                    k=res.json()
+                                    if ('frontiers' in k):
+                                        myfrontier=k['frontiers']
+                                        for m in myfrontier:
+                                            frontier=myfrontier[m]
+                                            break
+                                    if ('error' in k):
+                                        err=10003
+                                        errorname="Error: NANO error "+k['error']+" Error no.: "+str(err)
+                                    else:
+                                        err=10004
+                                        errorname="Error: NANO error unknown JSON param. Error no.: "+str(err)
+                                    hash_str=frontier
+                                except Exception as e:
+                                    err=10002
+                                    errorname="Error: Can't parse NANO node JSON "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+                            else:
+                                err=10001
+                                errorname="Error: NANO node status code: "+str(res.status_code)
+                    else:
+                        err=10005
+                        errorname="Error: Empty slot 7 fatal error "+str(err)
+                if (hash_str!=""):
+                    loop=asyncio.get_event_loop()
+                    res=None
+                    try:
+                        res=loop.run_until_complete(dpow_local_srv(data=hash_str))
+                    except Exception as e:
+                        err=10000
+                        errorname="Error: 'dpow_local_srv' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+                    if (res):
+                        if 'work' in res:
+                            ret=fenixiot.send_dpow(None, None, hash_str, res['work'])
+                            if (ret==None):
+                                msg="CMD_GET_DPOW"
+                                err=fenixiot.getlasterror()
+                                errorname=fenixprotocol.geterrorname(err)
+                        if 'error' in res:
+                            msg="ERR_DPOW"
+                            err=10030
+                            errorname="Error: 'dpow_local_srv' -> "+res['error']
+                else:
+                    msg="ERR_P2POW_NULL_HASH_STRING"
+                    err=10032
+                    errorname="Error: Null hash string. Can't find HASH"
         else:
             msg="get_dpow_hash_from_client() error"
             err=fenixiot.getlasterror()
