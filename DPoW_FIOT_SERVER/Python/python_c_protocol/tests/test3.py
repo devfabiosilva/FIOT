@@ -16,7 +16,7 @@ import urllib3
 #Qui 09 Jan 2020 22:40:39 -03 
 
 debug=True
-free_p2pow=True
+free_p2pow=False
 
 ################## ENCODING BEGIN ######################
 
