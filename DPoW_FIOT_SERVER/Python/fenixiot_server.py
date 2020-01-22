@@ -25,6 +25,7 @@ os_encoding=locale.getpreferredencoding()
 ########## Fenix-IoT Nano DPoW service begin ###########
 
 def fenix_debug(prot):
+    """Debug mode. Used for debugging"""
     global debug
     if (debug):
         if (hasattr(prot, "s0")):
@@ -59,15 +60,28 @@ def fenix_debug(prot):
             print(prot.s9)
 
 def fenix_onerror(e):
+    """Fenix-IoT on error event
+
+    If Fenix-IoT C library fails, internal event will be parsed to Python 3 (if callback fenixiot.onerror is set)
+
+    e.err -> Error number
+    e.errname -> Error name
+    e.msg -> Error reason
+    """
     if (e):
         print("Error: "+str(e.err))
         print("Error name: "+e.errname)
         print("Reason: "+e.msg)
-        type(e.errname)
     else:
         print("\nUnknown error\n")
 
 def fenix_onreceive(protocol):
+    """Fenix-IoT on receive data event
+
+    If callback fenixiot.ondata is set, Fenix-IoT C library will parse events with formatted slots (0-9).
+    COMING SOON (DOCUMENTATION)
+
+    """
     global NANO_PREFERED_REPRESENTATIVE
     global free_p2pow
     fenix_debug(protocol)
@@ -455,6 +469,10 @@ DPOW_DIFFICULTY="ffffffc000000000" # Real difficulty (sloooowwww) for I3 Intel C
 #DPOW_DIFFICULTY="fffc000000000000" # for testing (fast) for I3 Intel Core (38 to 380 ms)
 
 async def dpow_local_srv(data):
+    """Load a local DPoW server
+    If you want to serve your own Proof of Work use an appropriated server. This example uses 'nano-worker-server'
+    Please, refer https://github.com/nanocurrency/nano-work-server and install it to use with your application.
+    """
     global DPOW_DIFFICULTY
     http=urllib3.PoolManager()
     parm='{"action":"work_generate","hash":"'+data+'","difficulty":"'+DPOW_DIFFICULTY+'"}'
@@ -482,11 +500,17 @@ async def dpow_local_srv(data):
 ################### MQTT SERVICE BEGIN ##################
 
 def on_connect(client, userdata, flags, rc):
-    print("Connected with result code "+str(rc))
+    """Fiot MQTT protocol on connect event"""
+    global debug
+    if (debug):
+        print("Connected with result code "+str(rc))
     client.subscribe("test/dpow", 2)
 
 def on_message(client, userdata, msg):
-    print("Received message '"+str(msg.payload)+"' on topic '"+msg.topic+"' with QoS "+str(msg.qos))
+    """Fiot MQTT protocol on incoming data event"""
+    global debug
+    if (debug):
+        print("Received message '"+str(msg.payload)+"' on topic '"+msg.topic+"' with QoS "+str(msg.qos))
     fenixiot.getdataprotocol(msg.payload)
 
 client=mqtt.Client(client_id="fiot_mqtt_gateway", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
