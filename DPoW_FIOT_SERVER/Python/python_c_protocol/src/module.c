@@ -77,7 +77,9 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_NANO_BLOCK_INVALID_SIZE", PyC_ERR_NANO_BLOCK_INVALID_SIZE},
    {"F_ERR_SIGNED_JSON_NOT_FOUND", PyC_ERR_SIGNED_JSON_NOT_FOUND},
    {"F_ERR_SIGNED_JSON_BLOCK_TOO_LARGE", PyC_ERR_SIGNED_JSON_BLOCK_TOO_LARGE},
-   {"F_ERR_EMPTY_JSON_STR_BLK", PyC_ERR_EMPTY_JSON_STR_BLK}
+   {"F_ERR_EMPTY_JSON_STR_BLK", PyC_ERR_EMPTY_JSON_STR_BLK},
+   {"F_ERR_NULL_FEE_POINTER", PyC_ERR_NULL_FEE_POINTER},
+   {"F_ERR_ZERO_FEE", PyC_ERR_ZERO_FEE}
 
 };
 
@@ -1748,6 +1750,184 @@ send_preferred_representative_EXIT1:
 
 }
 
+static PyObject *send_worker_fee(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+
+   static char *kwlist[] = {"nano", "publish", "worker_wallet", "worker_fee", NULL};
+   char *buf_nano_addr, *pub_addr, *worker, *fee;
+   F_NANO_HW_TRANSACTION *buf;
+   size_t sz_tmp;
+   void *p;
+   PyObject *ret;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zzzz", kwlist, &buf_nano_addr, &pub_addr, &worker, &fee)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      self->f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
+
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_ALLOC_BUFFER, self->f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
+
+      return NULL;
+
+   }
+
+   buf->hdr.command=CMD_SEND_WORKER_FEE;
+   buf->hdr.raw_data_type=F_RAW_DATA_TYPE_RAW_DATA;
+
+   if (!(p=(void *)buf_nano_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata));
+
+   ret=Py_None;
+
+   if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, self->f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         ret=NULL;
+
+      goto send_worker_fee_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, self->f_last_error=PyC_ERR_EMPTY_STR)<0)
+         ret=NULL;
+
+      goto send_worker_fee_EXIT1;
+
+   }
+
+   if ((self->f_last_error=valid_nano_wallet((const char *)p))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, self->f_last_error)<0)
+         ret=NULL;
+
+      goto send_worker_fee_EXIT1;
+
+   }
+
+   strncpy((char *)buf->rawdata, (const char *)p, MAX_STR_NANO_CHAR);
+
+   buf->hdr.raw_data_sz=MAX_STR_NANO_CHAR;
+
+   if (worker) {
+
+      if ((self->f_last_error=valid_nano_wallet((const char *)worker))) {
+
+         if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_WORKER_WALLET, self->f_last_error)<0)
+            ret=NULL;
+
+         goto send_worker_fee_EXIT1;
+
+      }
+
+      if (!fee) {
+
+         if (f_set_error_no_raise_util(self, MSG_ERR_NULL_POINTER_WORKER_FEE, self->f_last_error=PyC_ERR_NULL_FEE_POINTER)<0)
+            ret=NULL;
+
+         goto send_worker_fee_EXIT1;
+
+      }
+
+      if (is_filled_with_value((uint8_t *)fee, strnlen(fee, MAX_STR_RAW_BALANCE_MAX), '0')) {
+
+         if (f_set_error_no_raise_util(self, MSG_ERR_ZERO_FEE, self->f_last_error=PyC_ERR_ZERO_FEE)<0)
+            ret=NULL;
+
+         goto send_worker_fee_EXIT1;
+
+      }
+
+      if ((self->f_last_error=valid_raw_balance(fee))) {
+
+         if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_RAW_FEE, self->f_last_error)<0)
+            ret=NULL;
+
+         goto send_worker_fee_EXIT1;
+
+      }
+
+      strncpy((char *)(buf->rawdata+MAX_STR_NANO_CHAR), (const char *)worker, MAX_STR_NANO_CHAR);
+      strncpy((char *)(buf->rawdata+2*MAX_STR_NANO_CHAR), (const char *)fee, MAX_STR_RAW_BALANCE_MAX);
+
+      buf->hdr.raw_data_sz+=MAX_STR_NANO_CHAR+MAX_STR_RAW_BALANCE_MAX;
+
+   }
+
+   if (!(p=(void *)pub_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str));
+
+   if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, self->f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         ret=NULL;
+
+      goto send_worker_fee_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, self->f_last_error=PyC_ERR_EMPTY_STR)<0)
+         ret=NULL;
+
+      goto send_worker_fee_EXIT1;
+
+   }
+
+   strncpy((char *)buf->hdr.publish_str, (const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ);
+
+   if ((self->f_last_error=prepare_command(buf, NULL))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, self->f_last_error)<0)
+         ret=NULL;
+
+      goto send_worker_fee_EXIT1;
+
+   }
+
+   memcpy((void *)self->sent_raw_data, (const void *)buf, (size_t)(self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))));
+
+   if (self->fc_onsentdata) {
+
+      ret=NULL;
+
+      if (!f_parse_args_util(self->fc_onsentdata, "0I1s2s3v4s5s", buf->hdr.command, buf->hdr.publish_str, buf->rawdata, self->sent_raw_data,
+         self->sent_raw_data_sz, (worker)?(char *)(buf->rawdata+MAX_STR_NANO_CHAR):"", (fee)?((char *)(buf->rawdata+2*MAX_STR_NANO_CHAR)):"")) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS, self->f_last_error=PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS);
+
+         goto send_worker_fee_EXIT1;
+
+      }
+
+      if (!(PyObject_CallFunctionObjArgs(self->fc_onsentdata, self->fc_onsentdata, NULL))) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_EXECUTE_FC_INTERNAL_ARGUMENTS, self->f_last_error=PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS);
+
+         goto send_worker_fee_EXIT1;
+
+      }
+
+      delete_slots_util(&self->fc_onsentdata);
+
+      ret=PyLong_FromLong((long int)(self->f_last_error=PyC_ERR_OK));
+
+   } else
+      ret=Py_BuildValue("y#", (const void *)self->sent_raw_data, (Py_ssize_t)self->sent_raw_data_sz);
+
+send_worker_fee_EXIT1:
+   memset(buf, 0, F_NANO_TRANSACTION_MAX_SZ);
+   free(buf);
+
+   return ret;
+
+}
+
 static PyObject *get_last_sent_protocol(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
@@ -2224,13 +2404,19 @@ static F_COMMAND_CONSTANT FIOT_COMMAND[] = {
    {"CMD_SEND_FRONTIER_TO_CLIENT", CMD_SEND_FRONTIER_TO_CLIENT},
    {"CMD_SEND_DPOW_TO_CLIENT", CMD_SEND_DPOW_TO_CLIENT},
    {"CMD_SEND_REPRESENTATIVE_TO_CLIENT", CMD_SEND_REPRESENTATIVE_TO_CLIENT},
+   {"CMD_SEND_ERROR_MSG_TO_CLIENT", CMD_SEND_ERROR_MSG_TO_CLIENT},
+   {"CMD_SEND_NEXT_PENDING_TO_CLIENT", CMD_SEND_NEXT_PENDING_TO_CLIENT},
+   {"CMD_SEND_BLOCK_STATE_TO_CLIENT", CMD_SEND_BLOCK_STATE_TO_CLIENT},
+   {"CMD_SEND_PREF_REPRESENTATIVE_TO_CLIENT", CMD_SEND_PREF_REPRESENTATIVE_TO_CLIENT},
+   {"CMD_SEND_WORKER_FEE", CMD_SEND_WORKER_FEE},
    {"CMD_GET_RAW_BALANCE", CMD_GET_RAW_BALANCE},
    {"CMD_GET_FRONTIER", CMD_GET_FRONTIER},
    {"CMD_GET_DPOW", CMD_GET_DPOW},
    {"CMD_GET_REPRESENTATIVE", CMD_GET_REPRESENTATIVE},
    {"CMD_GET_NEXT_PENDING_ACCOUNT", CMD_GET_NEXT_PENDING_ACCOUNT},
    {"CMD_GET_BLOCK_STATE_FROM_CLIENT", CMD_GET_BLOCK_STATE_FROM_CLIENT},
-   {"CMD_GET_PREF_REPRESENTATIVE", CMD_GET_PREF_REPRESENTATIVE}
+   {"CMD_GET_PREF_REPRESENTATIVE", CMD_GET_PREF_REPRESENTATIVE},
+   {"CMD_GET_WORKER_FEE", CMD_GET_WORKER_FEE}
 
 };
 #define FIOT_COMMAND_MAX_INDEX (size_t)(sizeof(FIOT_COMMAND)/sizeof(F_COMMAND_CONSTANT))
@@ -2537,6 +2723,7 @@ static PyMethodDef fiot_methods[] = {
     {"send_representative", (PyCFunction)send_representative, METH_VARARGS|METH_KEYWORDS, "Returns Nano Wallet with its representative"},
     {"send_preferred_representative", (PyCFunction)send_preferred_representative, METH_VARARGS|METH_KEYWORDS,
        "Returns Nano Wallet with a preferred representative FIOT server"},
+    {"send_worker_fee", (PyCFunction)send_worker_fee, METH_VARARGS|METH_KEYWORDS, "Sends worker Nano Address and Fee to client"},
     {"getdataprotocol", (PyCFunction)getincomingmessage, METH_VARARGS|METH_KEYWORDS, "Check and process protocol if success"},
     {"get_nano_addr_from_incoming_data", (PyCFunction)get_nano_addr_from_incoming_data,
        METH_NOARGS, "Returns Nano address in incoming client data, if exists."},

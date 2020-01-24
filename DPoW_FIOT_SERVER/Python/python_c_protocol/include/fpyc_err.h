@@ -64,7 +64,9 @@ typedef enum err_t {
    PyC_ERR_NANO_BLOCK_INVALID_SIZE,
    PyC_ERR_SIGNED_JSON_NOT_FOUND,
    PyC_ERR_SIGNED_JSON_BLOCK_TOO_LARGE,
-   PyC_ERR_EMPTY_JSON_STR_BLK
+   PyC_ERR_EMPTY_JSON_STR_BLK,
+   PyC_ERR_NULL_FEE_POINTER,
+   PyC_ERR_ZERO_FEE
 
 } FPYC_ERR;
 
@@ -122,4 +124,8 @@ typedef enum err_t {
 #define MSG_ERR_SIGNED_JSON_BLOCK_NOT_FOUND "\nSigned JSON block not found in incoming data\n"
 #define MSG_ERR_SIGNED_JSON_BLOCK_TOO_LARGE "\nSigned JSON string too large. Try a small signed JSON block\n"
 #define MSG_ERR_EMPTY_SIGNED_JSON_STR "\nEmpty signed JSON string block\n"
+#define MSG_ERR_INVALID_WORKER_WALLET "\nInvalid worker wallet\n"
+#define MSG_ERR_NULL_POINTER_WORKER_FEE "\nNULL pointer worker fee\n"
+#define MSG_ERR_INVALID_NANO_RAW_FEE "\nInvalid raw fee\n"
+#define MSG_ERR_ZERO_FEE "\nInvalid Fee. Worker fee is zero\n"
 

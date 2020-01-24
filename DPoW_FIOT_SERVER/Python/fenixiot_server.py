@@ -17,6 +17,8 @@ import urllib3
 
 debug=True
 free_p2pow=False
+WORKER_RAW_FEE="1000000000000000000000000000"
+WORKER_WALLET="<YOUR_WORKER_FEE_WALLET>"
 
 ################## ENCODING BEGIN ######################
 
@@ -422,6 +424,15 @@ def fenix_onreceive(protocol):
             err=10012
             errorname="Error: No preferred representative"
             msg="NANO_PREFERED_REPRESENTATIVE=EMPTY"
+    elif (command==fenixprotocol.CMD_GET_WORKER_FEE):
+        if (free_p2pow):
+            ret=fenixiot.send_worker_fee(None, None, None, None);
+        else:
+            ret=fenixiot.send_worker_fee(None, None, WORKER_WALLET, WORKER_RAW_FEE)
+        if (ret==None):
+            msg="CMD_GET_WORKER_FEE"
+            err=fenixiot.getlasterror()
+            errorname=fenixprotocol.geterrorname(err)
     else:
         err=10011
         errorname="Error: Unknown command "+str(err)
@@ -460,7 +471,6 @@ async def nano_node_srv(data):
    return requests.post(url=NANO_NODE_URL,data=data)
 
 ################## LOCAL DPOW TEST######################
-
 # TEST OK. YAY !!!
 # It works fine with nano-work-serve (install it if you want a local PoW https://github.com/nanocurrency/nano-work-server)
 DPOW_SERVER="[::1]:7076"

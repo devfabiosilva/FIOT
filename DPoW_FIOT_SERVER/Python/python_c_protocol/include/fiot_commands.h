@@ -67,6 +67,14 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // representative: representative (string)
 //}
 //
+#define CMD_SEND_WORKER_FEE (uint32_t)((9<<1)|1)
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano wallet (string)
+// nano_wallet_worker: worker wallet (string)
+// fee: fee (string)
+//}
+//
 // Client CMD's
 #define CMD_GET_RAW_BALANCE (uint32_t)(CMD_SEND_RAW_BALANCE_TO_CLIENT^0x00000001)
 //pub_add: Publish addr
@@ -112,7 +120,14 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // nano_wallet: nano wallet (string)
 //}
 //
-#define LAST_COMMAND CMD_SEND_PREF_REPRESENTATIVE_TO_CLIENT
+#define CMD_GET_WORKER_FEE (uint32_t)(CMD_SEND_WORKER_FEE^0x00000001)
+//pub_add: Publish addrs
+//raw_data{
+// nano_wallet: nano wallet (string)
+//}
+//
+
+#define LAST_COMMAND CMD_SEND_WORKER_FEE
 //pub_add: Publish addrs
 //raw_data{
 // error: uint32
