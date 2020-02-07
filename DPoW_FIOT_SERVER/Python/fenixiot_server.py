@@ -16,7 +16,7 @@ import urllib3
 #Qui 09 Jan 2020 22:40:39 -03 
 
 debug=True
-free_p2pow=False
+free_p2pow=True
 WORKER_RAW_FEE="1000000000000000000000000000"
 WORKER_WALLET="<YOUR_WORKER_FEE_WALLET>"
 
@@ -166,6 +166,7 @@ def fenix_onreceive(protocol):
                 else:
                     err=10001
                     errorname="Error: NANO node status code: "+str(res.status_code)
+            loop.close()
         else:
             err=10005
             errorname="Error: Empty slot 7 fatal error "+str(err)
@@ -210,6 +211,7 @@ def fenix_onreceive(protocol):
                 else:
                     err=10001
                     errorname="Error: NANO node status code: "+str(res.status_code)
+            loop.close()
         else:
             err=10005
             errorname="Error: Empty slot 7 fatal error "+str(err)
@@ -254,6 +256,7 @@ def fenix_onreceive(protocol):
                         msg="CMD_GET_FRONTIER"
                         err=fenixiot.getlasterror()
                         errorname=fenixprotocol.geterrorname(err)
+            loop.close()
         else:
             err=10005
             errorname="Error: Empty slot 7 fatal error "+str(err)
@@ -304,6 +307,7 @@ def fenix_onreceive(protocol):
                             else:
                                 err=10001
                                 errorname="Error: NANO node status code: "+str(res.status_code)
+                        loop.close()
                     else:
                         err=10005
                         errorname="Error: Empty slot 7 fatal error "+str(err)
@@ -326,6 +330,7 @@ def fenix_onreceive(protocol):
                             msg="ERR_DPOW"
                             err=10030
                             errorname="Error: 'dpow_local_srv' -> "+res['error']
+                    loop.close()
                 else:
                     msg="ERR_P2POW_NULL_HASH_STRING"
                     err=10032
@@ -370,6 +375,7 @@ def fenix_onreceive(protocol):
                         msg="CMD_GET_REPRESENTATIVE"
                         err=fenixiot.getlasterror()
                         errorname=fenixprotocol.geterrorname(err)
+            loop.close()
         else:
             err=10005
             errorname="Error: Empty slot 7 fatal error "+str(err)
@@ -413,6 +419,7 @@ def fenix_onreceive(protocol):
                         msg="CMD_GET_BLOCK_STATE_FROM_CLIENT"
                         err=fenixiot.getlasterror()
                         errorname=fenixprotocol.geterrorname(err)
+            loop.close()
     elif (command==fenixprotocol.CMD_GET_PREF_REPRESENTATIVE):
         if (NANO_PREFERED_REPRESENTATIVE!=""):
             ret=fenixiot.send_preferred_representative(None, None, NANO_PREFERED_REPRESENTATIVE)
@@ -463,7 +470,7 @@ fenixiot.ondata(fenix_onreceive)
 print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
-#NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
+NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
 NANO_PREFERED_REPRESENTATIVE="nano_3ngt59dc7hbsjd1dum1bw9wbb87mbtuj4qkwcruididsb5rhgdt9zb4w7kb9"
 
 async def nano_node_srv(data):
