@@ -38,4 +38,5 @@ char *fhex2strv2(char *, const void *, size_t, int);
 int nano_base_32_2_hex(uint8_t *, const char *);
 int is_filled_with_value(uint8_t *, size_t, uint8_t);
 int is_null_hash(uint8_t *hash);
+int f_parse_p2pow_block_to_json(char *, size_t *, size_t, F_BLOCK_TRANSFER *, F_BLOCK_TRANSFER *);
 

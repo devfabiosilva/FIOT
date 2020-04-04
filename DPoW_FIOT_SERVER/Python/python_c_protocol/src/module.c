@@ -9,10 +9,10 @@
 #include <Python.h>
 #include <stdarg.h>
 #include "structmember.h"
-#include "../include/fpyc_err.h"
-#include "../include/fiot_commands.h"
-#include "../include/nano_dpow_server_util.h"
-#include "../include/defmsg.h"
+#include "fpyc_err.h"
+#include "fiot_commands.h"
+#include "nano_dpow_server_util.h"
+#include "defmsg.h"
 
 typedef struct {
    PyObject_HEAD
@@ -80,7 +80,8 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_EMPTY_JSON_STR_BLK", PyC_ERR_EMPTY_JSON_STR_BLK},
    {"F_ERR_NULL_FEE_POINTER", PyC_ERR_NULL_FEE_POINTER},
    {"F_ERR_ZERO_FEE", PyC_ERR_ZERO_FEE},
-   {"F_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND", PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND}
+   {"F_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND", PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND},
+   {"F_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON", PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON}
 
 };
 
@@ -2544,6 +2545,8 @@ static PyObject *get_signed_p2pow_block(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
 {
 //CMD_SEND_RAW_SIGNED_RESULT
    size_t sz_tmp;
+   char *buf;
+   PyObject *ret;
 
    if ((sz_tmp=(size_t)self->raw_data_sz)>F_NANO_TRANSACTION_MAX_SZ) {
 
@@ -2579,8 +2582,8 @@ static PyObject *get_signed_p2pow_block(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
 
    }
 
-// Implementar
    if (((sz_tmp=(size_t)(*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_sz))))!=sizeof(F_BLOCK_TRANSFER))) {
+
       if (sz_tmp!=(2*sizeof(F_BLOCK_TRANSFER))) {
 
          if (f_set_error_no_raise_util(self, MSG_ERR_P2POW_SIGNED_BLOCK_NOT_FOUND, self->f_last_error=PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND)<0)
@@ -2589,12 +2592,33 @@ static PyObject *get_signed_p2pow_block(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
          return Py_None;
 
       }
+
    } else
       sz_tmp=0;
 
-// Fim de implementar
+   if (!(buf=malloc(4096))) {
 
-   return Py_BuildValue("s", (const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR));
+      f_set_error_no_raise_util(self, MSG_FATAL_ERROR_MALLOC, self->f_last_error=PyC_ERR_BUFFER_ALLOC);
+
+      return NULL;
+
+   }
+
+   ret=Py_None;
+
+   if (f_parse_p2pow_block_to_json(buf, NULL, 4096, (F_BLOCK_TRANSFER *)(self->raw_data+sizeof(F_NANO_HW_TRANSACTION)),
+      (sz_tmp)?(F_BLOCK_TRANSFER *)(self->raw_data+sizeof(F_NANO_HW_TRANSACTION)+sizeof(F_BLOCK_TRANSFER)):NULL)) {
+
+      if (f_set_error_no_raise_util(self, MSG_CANT_PARSE_SIGNED_P2POW_TO_JSON, self->f_last_error=PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON)<0)
+         ret=NULL;
+
+   } else
+     ret=Py_BuildValue("s", (const char *)buf);
+
+   memset(buf, 0, 4096);
+   free(buf);
+
+   return ret;
 
 }
 static PyObject *get_signed_json_block_from_fenixiot(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))

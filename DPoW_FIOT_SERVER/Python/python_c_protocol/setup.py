@@ -30,8 +30,8 @@ def main():
         author_email="fabioegel@gmail.com",
         maintainer_email="fabioegel@gmail.com",
         ext_modules=[Extension("fiot", ["src/module.c", "src/fiot_commands.c", "src/fpyc_err.c", "src/nano_dpow_server_util.c"],
-            library_dirs=['lib', 'lib/mbedtls'], libraries=['sodium', 'mbedtls'], extra_objects=['src/f_add_bn_288_le_ia64.o'],
-            include_dirs=['include'])])
+            library_dirs=['lib'], libraries=['mbedtls', 'sodium', 'mbedcrypto', 'mbedx509'], extra_objects=['src/f_add_bn_288_le_ia64.o'],
+            include_dirs=['include', 'include/mbedtls', 'include/libsodium'])])
 
 if __name__ == "__main__":
     main()

@@ -67,7 +67,8 @@ typedef enum err_t {
    PyC_ERR_EMPTY_JSON_STR_BLK,
    PyC_ERR_NULL_FEE_POINTER,
    PyC_ERR_ZERO_FEE,
-   PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND
+   PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND,
+   PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON
 
 } FPYC_ERR;
 
@@ -130,4 +131,7 @@ typedef enum err_t {
 #define MSG_ERR_INVALID_NANO_RAW_FEE "\nInvalid raw fee\n"
 #define MSG_ERR_ZERO_FEE "\nInvalid Fee. Worker fee is zero\n"
 #define MSG_ERR_P2POW_SIGNED_BLOCK_NOT_FOUND "\nSigned P2PoW raw block not found\n"
+#define MSG_FATAL_ERROR_MALLOC "\nError in memory allocation. Aborting ...\n\n"
+#define MSG_CANT_PARSE_SIGNED_P2POW_TO_JSON "\nCan't parse P2PoW transaction to JSON\n"
+
 

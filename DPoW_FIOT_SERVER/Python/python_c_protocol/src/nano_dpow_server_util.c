@@ -15,10 +15,10 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#include "../include/f_add_bn_288_le.h"
-#include "../include/nano_dpow_server_util.h"
-#include "../include/libsodium/crypto_generichash.h"
-#include "../include/mbedtls/bignum.h"
+#include "f_add_bn_288_le.h"
+#include "nano_dpow_server_util.h"
+#include "crypto_generichash.h"
+#include "bignum.h"
 
 #define PUB_KEY_EXTENDED_MAX_LEN (size_t)40
 #define NANO_PREFIX "nano_"
@@ -69,7 +69,6 @@ int str_wallet_to_alphabet_index(uint8_t *list, const char *str_wallet, size_t s
 {
    int err;
    int i, j;
-   //const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
 
    for (j=0;j<str_sz;j++) {
 
@@ -467,7 +466,6 @@ int pk_to_wallet(char *out, char *prefix, NANO_PUBLIC_KEY_EXTENDED pubkey_extend
    int err;
    char *fp;
    F_ADD_288 displace;
-   //extern const char alphabet[] asm("_binary_alphabet_dat_start");
 
    pos=strlen(prefix);
 
@@ -534,6 +532,7 @@ int pk_to_wallet(char *out, char *prefix, NANO_PUBLIC_KEY_EXTENDED pubkey_extend
 
    return 0;
 }
+
 //No sanity check (for internal use only) april 4 2020
 int f_nano_balance_to_str_util(char *str, size_t str_len, f_uint128_t value)
 {
@@ -564,7 +563,6 @@ f_nano_balance_to_str_EXIT2:
 }
 
 #define F_P2POW_BUF_SZ (size_t)8192
-
 int f_parse_block_transfer_to_json(char *dest, size_t *olen, size_t dest_sz, F_BLOCK_TRANSFER *block_transfer)
 {
 
@@ -675,19 +673,74 @@ int f_parse_block_transfer_to_json(char *dest, size_t *olen, size_t dest_sz, F_B
 
    (olen)?(*olen=sz):(buf[sz++]=0);
 
-   if (sz>dest_sz) {
-
-      err=165;
-      goto parse_p2pow_to_json_EXIT1;
-
-   }
-
-   memcpy(dest, buf, sz);
-
    err=0;
+
+   (sz>dest_sz)?(void)(err=165):(void *)(memcpy(dest, buf, sz));
 
 parse_p2pow_to_json_EXIT1:
    memset(buf, 0, F_P2POW_BUF_SZ+256);
+   free(buf);
+
+   return err;
+
+}
+
+int f_parse_p2pow_block_to_json(char *str, size_t *olen, size_t str_sz, F_BLOCK_TRANSFER *user_transaction, F_BLOCK_TRANSFER *transaction_fee)
+{
+
+   int err;
+   uint8_t *buf;
+   size_t sz_tmp;
+
+   if (!(buf=malloc(2*F_P2POW_BUF_SZ)))
+      return 170;
+
+   if (f_parse_block_transfer_to_json((char *)buf, &sz_tmp, (F_P2POW_BUF_SZ>>1), user_transaction)) {
+
+      err=171;
+
+      goto f_parse_p2pow_block_to_json_EXIT1;
+
+   }
+
+   if (transaction_fee) {
+
+      buf[sz_tmp]=0;
+
+      if (f_find_replace((char *)(buf+(F_P2POW_BUF_SZ>>1)), NULL, (F_P2POW_BUF_SZ>>1), (char *)P2POW_JSON_FORMAT, strlen(P2POW_JSON_FORMAT), "%0", 
+         (char *)buf)) {
+
+         err=172;
+         goto f_parse_p2pow_block_to_json_EXIT1;
+
+      }
+
+      if (f_parse_block_transfer_to_json((char *)(buf+F_P2POW_BUF_SZ), NULL, F_P2POW_BUF_SZ, transaction_fee)) {
+
+         err=173;
+         goto f_parse_p2pow_block_to_json_EXIT1;
+
+      }
+
+      if (f_find_replace((char *)buf, &sz_tmp, (F_P2POW_BUF_SZ>>1), (char *)(buf+(F_P2POW_BUF_SZ>>1)), strnlen((char *)(buf+(F_P2POW_BUF_SZ>>1)),
+         (F_P2POW_BUF_SZ>>1)), "%1", (char *)(buf+F_P2POW_BUF_SZ))) {
+
+         err=174;
+
+         goto f_parse_p2pow_block_to_json_EXIT1;
+
+      }
+
+   }
+
+   (olen)?(*olen=sz_tmp):(buf[sz_tmp++]=0);
+
+   err=0;
+
+   (sz_tmp>str_sz)?(void)(err=175):(void *)(memcpy(str, buf, sz_tmp));
+
+f_parse_p2pow_block_to_json_EXIT1:
+   memset(buf, 0, 2*F_P2POW_BUF_SZ);
    free(buf);
 
    return err;

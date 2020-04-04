@@ -470,8 +470,8 @@ fenixiot.ondata(fenix_onreceive)
 print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
-#NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
-NANO_NODE_URL="http://157.245.80.20:7076/"
+NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
+
 NANO_PREFERED_REPRESENTATIVE="nano_3ngt59dc7hbsjd1dum1bw9wbb87mbtuj4qkwcruididsb5rhgdt9zb4w7kb9"
 
 async def nano_node_srv(data):

@@ -12,8 +12,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "../include/fpyc_err.h"
-#include "../include/fiot_commands.h"
+#include "fpyc_err.h"
+#include "fiot_commands.h"
 
 static uint32_t crc32_init(unsigned char *, size_t, uint32_t);
 
