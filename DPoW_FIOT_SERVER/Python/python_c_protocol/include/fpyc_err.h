@@ -66,7 +66,8 @@ typedef enum err_t {
    PyC_ERR_SIGNED_JSON_BLOCK_TOO_LARGE,
    PyC_ERR_EMPTY_JSON_STR_BLK,
    PyC_ERR_NULL_FEE_POINTER,
-   PyC_ERR_ZERO_FEE
+   PyC_ERR_ZERO_FEE,
+   PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND
 
 } FPYC_ERR;
 
@@ -128,4 +129,5 @@ typedef enum err_t {
 #define MSG_ERR_NULL_POINTER_WORKER_FEE "\nNULL pointer worker fee\n"
 #define MSG_ERR_INVALID_NANO_RAW_FEE "\nInvalid raw fee\n"
 #define MSG_ERR_ZERO_FEE "\nInvalid Fee. Worker fee is zero\n"
+#define MSG_ERR_P2POW_SIGNED_BLOCK_NOT_FOUND "\nSigned P2PoW raw block not found\n"
 

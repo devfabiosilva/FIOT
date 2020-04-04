@@ -18,6 +18,23 @@
 #include "../include/f_add_bn_288_le.h"
 #include "../include/nano_dpow_server_util.h"
 #include "../include/libsodium/crypto_generichash.h"
+#include "../include/mbedtls/bignum.h"
+
+#define PUB_KEY_EXTENDED_MAX_LEN (size_t)40
+#define NANO_PREFIX "nano_"
+#define XRB_PREFIX "xrb_"
+#define MAX_STR_NANO_CHAR (size_t)70
+#define REP_XRB (uint8_t)0x4
+#define SENDER_XRB (uint8_t)0x02
+#define DEST_XRB (uint8_t)0x01
+
+typedef uint8_t NANO_PUBLIC_KEY_EXTENDED[PUB_KEY_EXTENDED_MAX_LEN];
+
+const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
+const char P2POW_JSON_FORMAT[]="{\"user_transaction\":\"%0\",\"reward_transaction\":\"%1\"}";
+const char JSON_NANO_TRANSACTION[]="{\"action\":\"process\",\"json_block\":\"true\",\"block\":{\"type\":\"state\",\
+\"account\":\"%1\",\"previous\":\"%2\",\"representative\":\"%3\",\"balance\":\"%4\",\"link\":\"%5\",\"link_as_account\"\
+:\"%6\",\"signature\":\"%7\"}}";
 
 int f_reverse(unsigned char *val, size_t val_sz)
 {
@@ -52,7 +69,7 @@ int str_wallet_to_alphabet_index(uint8_t *list, const char *str_wallet, size_t s
 {
    int err;
    int i, j;
-   const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
+   //const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
 
    for (j=0;j<str_sz;j++) {
 
@@ -341,5 +358,339 @@ int is_filled_with_value(uint8_t *value, size_t value_sz, uint8_t ch)
 inline int is_null_hash(uint8_t *hash)
 {
    return is_filled_with_value(hash, MAX_RAW_DATA_HASH, 0);
+}
+
+int f_find_str(size_t *pos, char *str, size_t str_sz, char *what_find)
+{
+   int err;
+   size_t what_find_sz, i;
+   char *p;
+
+   if ((what_find_sz=strlen(what_find))>str_sz)
+      return 1;
+
+   p=str;
+
+   err=2;
+
+   for (i=0;i<=(str_sz-what_find_sz);i++) {
+      if (memcmp(p++, what_find, what_find_sz))
+         continue;
+      p--;
+      err=0;
+      break;
+   }
+
+   if (err==0)
+      if (pos)
+         *pos=(p-str);
+
+   return err;
+}
+
+int f_find_replace(char *dest_buf, size_t *out_len, size_t dest_buf_sz, char *str, size_t str_sz, char *what_find, char *what_replace)
+{
+   int err;
+   size_t pos, tmp_dest_buf_sz;
+   size_t what_replace_sz, what_find_sz, tmp;
+   char *p_str;
+   char *p_dest;
+
+   err=f_find_str(&pos, str, str_sz, what_find);
+
+   if (err)
+      return err;
+
+   what_replace_sz=strlen(what_replace);
+
+   tmp=what_replace_sz+pos;
+
+   if (tmp>dest_buf_sz)
+      return 40;
+
+   p_dest=dest_buf;
+   p_str=str;
+
+   if (pos) {
+      memcpy(p_dest, p_str, pos);
+      p_dest+=pos;
+   }
+
+   if (what_replace_sz) {
+      memcpy(p_dest, what_replace, what_replace_sz);
+
+      p_dest+=what_replace_sz;
+
+   }
+
+   what_find_sz=strlen(what_find);
+
+   tmp_dest_buf_sz=tmp;
+
+   tmp=pos+what_find_sz;
+
+   p_str+=tmp;
+
+   tmp=(str_sz-tmp);
+
+   if (tmp==0)
+      goto f_find_replacef_find_replace_EXIT;
+
+   tmp_dest_buf_sz+=tmp;
+
+   if (tmp_dest_buf_sz>dest_buf_sz)
+      return 41;
+
+   memcpy(p_dest, p_str, tmp);
+
+f_find_replacef_find_replace_EXIT:
+   if (out_len) {
+      *out_len=tmp_dest_buf_sz;
+      return 0;
+   }
+
+   tmp_dest_buf_sz++;
+
+   if (tmp_dest_buf_sz>dest_buf_sz)
+      return 42;
+
+   *(p_dest+=tmp)=0;
+
+   return 0;
+}
+
+int pk_to_wallet(char *out, char *prefix, NANO_PUBLIC_KEY_EXTENDED pubkey_extended)
+{
+
+   uint8_t a, b;
+   size_t i, count, pos;
+   int err;
+   char *fp;
+   F_ADD_288 displace;
+   //extern const char alphabet[] asm("_binary_alphabet_dat_start");
+
+   pos=strlen(prefix);
+
+   if (4>pos)
+      return 1;
+
+   crypto_generichash((unsigned char *)(count=(size_t)pubkey_extended+35), 5, pubkey_extended, 32, NULL, 0);
+
+   if ((err=f_reverse((unsigned char *)count, 5)))
+      return err;
+
+   memset(displace, 0, sizeof(F_ADD_288));
+
+   if ((err=f_reverse(pubkey_extended, 32)))
+      return err;
+
+   memcpy(displace, pubkey_extended, 32);
+
+   f_add_bn_288_le(displace, displace, displace, NULL, 0);
+   f_add_bn_288_le(displace, displace, displace, NULL, 0);
+   f_add_bn_288_le(displace, displace, displace, NULL, 0);
+   f_add_bn_288_le(displace, displace, displace, NULL, 0);
+   f_add_bn_288_le(displace, displace, displace, NULL, 0);
+
+   f_reverse(displace, sizeof(displace));
+
+   memcpy(pubkey_extended, ((uint8_t *)displace)+1, sizeof(F_ADD_288)-1);
+
+   count=0;
+
+   fp=out;
+
+   out+=(pos-3);
+
+   for (i=0;i<8;i++) {
+
+      a=pubkey_extended[count++];
+      *(out++)=alphabet[(a>>3)];
+
+      b=pubkey_extended[count++];
+      *(out++)=alphabet[(((a&0x07)<<2)|(b>>6))];
+      *(out++)=alphabet[((b>>1)&0x1F)];
+
+      a=pubkey_extended[count++];
+      *(out++)=alphabet[(((b&0x01)<<4)|(a>>4))];
+
+      b=pubkey_extended[count++];
+      *(out++)=alphabet[(((a&0x0F)<<1)|(b>>7))];
+      *(out++)=alphabet[((b>>2)&0x1F)];
+
+      a=pubkey_extended[count++];
+      *(out++)=alphabet[(((b&0x03)<<3)|(a>>5))];
+      *(out++)=alphabet[(a&0x1F)];
+
+   }
+
+   out--;
+
+   memcpy(out-8,out-7,8);
+
+   *out=0;
+
+   memcpy(fp, prefix, pos);
+
+   return 0;
+}
+//No sanity check (for internal use only) april 4 2020
+int f_nano_balance_to_str_util(char *str, size_t str_len, f_uint128_t value)
+{
+   int err;
+   mbedtls_mpi *X;
+   size_t out_len_tmp;
+
+   X=malloc(sizeof(mbedtls_mpi));
+
+   if (!X)
+      return 203;
+
+   mbedtls_mpi_init(X);
+
+   if (mbedtls_mpi_read_binary(X, value, sizeof(f_uint128_t))) {
+      err=204;
+      goto f_nano_balance_to_str_EXIT2;
+   }
+
+   (mbedtls_mpi_write_string(X, 10, str, str_len, &out_len_tmp))?(err=(int)out_len_tmp):(err=0);
+
+f_nano_balance_to_str_EXIT2:
+   mbedtls_mpi_free(X);
+
+   free(X);
+
+   return err;
+}
+
+#define F_P2POW_BUF_SZ (size_t)8192
+
+int f_parse_block_transfer_to_json(char *dest, size_t *olen, size_t dest_sz, F_BLOCK_TRANSFER *block_transfer)
+{
+
+   int err;
+   size_t sz;
+   uint8_t *buf;
+
+   if (!(buf=malloc(F_P2POW_BUF_SZ+256)))
+      return 153;
+
+   if (pk_to_wallet((char *)(buf+F_P2POW_BUF_SZ-MAX_STR_NANO_CHAR), (block_transfer->prefixes&SENDER_XRB)?XRB_PREFIX:NANO_PREFIX,
+      (uint8_t *)memcpy(buf+F_P2POW_BUF_SZ-sizeof(NANO_PUBLIC_KEY_EXTENDED)-MAX_STR_NANO_CHAR, block_transfer->account, 32))) {
+
+      err=154;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (f_find_replace((char *)buf, NULL, (F_P2POW_BUF_SZ>>1), (char *)memcpy(buf+(F_P2POW_BUF_SZ>>1), JSON_NANO_TRANSACTION, sizeof(JSON_NANO_TRANSACTION)),
+      sizeof(*JSON_NANO_TRANSACTION)-1, "%1", (char *)(buf+F_P2POW_BUF_SZ-MAX_STR_NANO_CHAR))) {
+
+      err=155;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (f_find_replace((char *)(buf+(F_P2POW_BUF_SZ>>1)), NULL, (F_P2POW_BUF_SZ>>1), (char *)buf, strnlen((const char *)buf, (F_P2POW_BUF_SZ>>1)-1), "%2",
+      fhex2strv2((char *)(buf+F_P2POW_BUF_SZ-128), block_transfer->previous, 32, 1))) {
+
+      err=156;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (pk_to_wallet((char *)(buf+F_P2POW_BUF_SZ-MAX_STR_NANO_CHAR), (block_transfer->prefixes&REP_XRB)?XRB_PREFIX:NANO_PREFIX,
+      (uint8_t *)memcpy(buf+F_P2POW_BUF_SZ-sizeof(NANO_PUBLIC_KEY_EXTENDED)-MAX_STR_NANO_CHAR, block_transfer->representative, 32))) {
+
+      err=157;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (f_find_replace((char *)buf, NULL, (F_P2POW_BUF_SZ>>1), (char *)(buf+(F_P2POW_BUF_SZ>>1)), strnlen((const char *)(buf+(F_P2POW_BUF_SZ>>1)),
+      (F_P2POW_BUF_SZ>>1)-1), "%3", (char *)(buf+F_P2POW_BUF_SZ-MAX_STR_NANO_CHAR))) {
+
+      err=158;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (f_nano_balance_to_str_util((char *)(buf+F_P2POW_BUF_SZ-256), 256, block_transfer->balance)) {
+
+      err=159;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (f_find_replace((char *)(buf+(F_P2POW_BUF_SZ>>1)), NULL, (F_P2POW_BUF_SZ>>1), (char *)buf, strnlen((const char *)buf, (F_P2POW_BUF_SZ>>1)-1),
+      "%4", (char *)(buf+F_P2POW_BUF_SZ-256))) {
+
+      err=160;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (f_find_replace((char *)buf, NULL, (F_P2POW_BUF_SZ>>1), (char *)(buf+(F_P2POW_BUF_SZ>>1)), strnlen((const char *)(buf+(F_P2POW_BUF_SZ>>1)),
+      (F_P2POW_BUF_SZ>>1)-1), "%5", fhex2strv2((char *)(buf+F_P2POW_BUF_SZ-128), block_transfer->link, 32, 1))) {
+
+      err=161;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (pk_to_wallet((char *)(buf+F_P2POW_BUF_SZ-MAX_STR_NANO_CHAR), (block_transfer->prefixes&SENDER_XRB)?XRB_PREFIX:NANO_PREFIX,
+      (uint8_t *)memcpy(buf+F_P2POW_BUF_SZ-sizeof(NANO_PUBLIC_KEY_EXTENDED)-MAX_STR_NANO_CHAR, block_transfer->link, 32))) {
+
+      err=162;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   } 
+
+   if (f_find_replace((char *)(buf+(F_P2POW_BUF_SZ>>1)), NULL, (F_P2POW_BUF_SZ>>1), (char *)buf, strnlen((const char *)buf, (F_P2POW_BUF_SZ>>1)-1),
+      "%6", (char *)(buf+F_P2POW_BUF_SZ-MAX_STR_NANO_CHAR))) {
+
+      err=163;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   if (f_find_replace((char *)buf, &sz, (F_P2POW_BUF_SZ>>1), (char *)(buf+(F_P2POW_BUF_SZ>>1)), strnlen((const char *)(buf+(F_P2POW_BUF_SZ>>1)),
+      (F_P2POW_BUF_SZ>>1)-1), "%7", fhex2strv2((char *)(buf+F_P2POW_BUF_SZ-256), block_transfer->signature, 64, 0))) {
+
+      err=164;
+
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   (olen)?(*olen=sz):(buf[sz++]=0);
+
+   if (sz>dest_sz) {
+
+      err=165;
+      goto parse_p2pow_to_json_EXIT1;
+
+   }
+
+   memcpy(dest, buf, sz);
+
+   err=0;
+
+parse_p2pow_to_json_EXIT1:
+   memset(buf, 0, F_P2POW_BUF_SZ+256);
+   free(buf);
+
+   return err;
+
 }
 

@@ -9,6 +9,6 @@
 
 #Environment for testing
 
-export LD_LIBRARY_PATH=$(pwd)/python_c_protocol/lib
-export PYTHONPATH=$(pwd)/python_c_protocol/build/lib.linux-x86_64-3.5/
+export LD_LIBRARY_PATH=$(pwd)/lib
+export PYTHONPATH=$(pwd)/build/lib.linux-x86_64-3.5/:$(pwd)lib.linux-x86_64-3.6/
 

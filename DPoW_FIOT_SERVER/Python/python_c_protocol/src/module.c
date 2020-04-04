@@ -79,7 +79,8 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_SIGNED_JSON_BLOCK_TOO_LARGE", PyC_ERR_SIGNED_JSON_BLOCK_TOO_LARGE},
    {"F_ERR_EMPTY_JSON_STR_BLK", PyC_ERR_EMPTY_JSON_STR_BLK},
    {"F_ERR_NULL_FEE_POINTER", PyC_ERR_NULL_FEE_POINTER},
-   {"F_ERR_ZERO_FEE", PyC_ERR_ZERO_FEE}
+   {"F_ERR_ZERO_FEE", PyC_ERR_ZERO_FEE},
+   {"F_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND", PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND}
 
 };
 
@@ -2539,6 +2540,63 @@ static PyObject *get_command_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObjec
 
 }
 
+static PyObject *get_signed_p2pow_block(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
+{
+//CMD_SEND_RAW_SIGNED_RESULT
+   size_t sz_tmp;
+
+   if ((sz_tmp=(size_t)self->raw_data_sz)>F_NANO_TRANSACTION_MAX_SZ) {
+
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_MAX_DATA_MEMORY_OVFL, self->f_last_error=PyC_ERR_MEM_OVFL)>0)
+         return Py_None;
+
+      return NULL;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_NULL_DATA, self->f_last_error=PyC_ERR_NULL_DATA)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((self->f_last_error=verify_protocol((F_NANO_HW_TRANSACTION *)self->raw_data, 1))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_VERIFY_INCOMING_PROTOCOL, self->f_last_error)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))^CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_P2POW_SIGNED_BLOCK_NOT_FOUND, self->f_last_error=PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND)<0)
+         return NULL;
+
+      return Py_None;
+
+   }
+
+// Implementar
+   if (((sz_tmp=(size_t)(*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, raw_data_sz))))!=sizeof(F_BLOCK_TRANSFER))) {
+      if (sz_tmp!=(2*sizeof(F_BLOCK_TRANSFER))) {
+
+         if (f_set_error_no_raise_util(self, MSG_ERR_P2POW_SIGNED_BLOCK_NOT_FOUND, self->f_last_error=PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND)<0)
+            return NULL;
+
+         return Py_None;
+
+      }
+   } else
+      sz_tmp=0;
+
+// Fim de implementar
+
+   return Py_BuildValue("s", (const char *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+MAX_STR_NANO_CHAR));
+
+}
 static PyObject *get_signed_json_block_from_fenixiot(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED(ignored))
 {
 
@@ -2749,6 +2807,8 @@ static PyMethodDef fiot_methods[] = {
        "Returns FIOT COMMAND in incoming raw data memory, if exists."},
     {"get_signed_json_block_from_fenixiot", (PyCFunction)get_signed_json_block_from_fenixiot, METH_NOARGS,
        "Returns signed JSON block string in incoming raw data memory, if exists."},
+    {"get_signed_p2pow_block", (PyCFunction)get_signed_p2pow_block, METH_NOARGS,
+       "Return (if success) an signed p2pow block in JSON format"},
     {"onerror", (PyCFunction)set_onerror, METH_VARARGS|METH_KEYWORDS,
        "On error event. Set a callable function here"},
     {"ondata", (PyCFunction)set_onreceivedfromclient, METH_VARARGS|METH_KEYWORDS,
@@ -2758,7 +2818,6 @@ static PyMethodDef fiot_methods[] = {
     {"senderrortoclient", (PyCFunction)send_error_to_client, METH_VARARGS|METH_KEYWORDS,
        "Send error to client. Returns None or Raw data"},
     {NULL, NULL, 0, NULL}
-
 };
 
 static PyMemberDef FIOT_RAW_DATA_OBJ_members[] = {

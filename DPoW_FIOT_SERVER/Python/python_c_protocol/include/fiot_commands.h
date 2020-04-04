@@ -75,6 +75,15 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // fee: fee (string)
 //}
 //
+
+#define CMD_SEND_RAW_SIGNED_RESULT (uint32_t)((10<<1)|1)
+////pub_add: Publish addrs
+//raw_data{
+// hash_transaction
+// hash_worker
+//}
+//
+
 // Client CMD's
 #define CMD_GET_RAW_BALANCE (uint32_t)(CMD_SEND_RAW_BALANCE_TO_CLIENT^0x00000001)
 //pub_add: Publish addr
@@ -126,8 +135,14 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // nano_wallet: nano wallet (string)
 //}
 //
-
-#define LAST_COMMAND CMD_SEND_WORKER_FEE
+#define CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT (uint32_t)(CMD_SEND_RAW_SIGNED_RESULT^0x00000001)
+//pub_add: Publish addr
+//raw_data{
+// raw_signed_transaction_block(fiot_data)
+// raw_signed_worker_fee_block(fee_data) --> can be null
+//}
+//
+#define LAST_COMMAND CMD_SEND_RAW_SIGNED_RESULT
 //pub_add: Publish addrs
 //raw_data{
 // error: uint32
