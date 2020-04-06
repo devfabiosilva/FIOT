@@ -583,7 +583,7 @@ int f_parse_block_transfer_to_json(char *dest, size_t *olen, size_t dest_sz, F_B
    }
 
    if (f_find_replace((char *)buf, NULL, (F_P2POW_BUF_SZ>>1), (char *)memcpy(buf+(F_P2POW_BUF_SZ>>1), JSON_NANO_TRANSACTION, sizeof(JSON_NANO_TRANSACTION)),
-      sizeof(*JSON_NANO_TRANSACTION)-1, "%1", (char *)(buf+F_P2POW_BUF_SZ-MAX_STR_NANO_CHAR))) {
+      sizeof(JSON_NANO_TRANSACTION)-1, "%1", (char *)(buf+F_P2POW_BUF_SZ-MAX_STR_NANO_CHAR))) {
 
       err=155;
 
@@ -707,7 +707,7 @@ int f_parse_p2pow_block_to_json(char *str, size_t *olen, size_t str_sz, F_BLOCK_
 
       buf[sz_tmp]=0;
 
-      if (f_find_replace((char *)(buf+(F_P2POW_BUF_SZ>>1)), NULL, (F_P2POW_BUF_SZ>>1), (char *)P2POW_JSON_FORMAT, strlen(P2POW_JSON_FORMAT), "%0", 
+      if (f_find_replace((char *)(buf+(F_P2POW_BUF_SZ>>1)), NULL, (F_P2POW_BUF_SZ>>1), (char *)P2POW_JSON_FORMAT, sizeof(P2POW_JSON_FORMAT)-1, "%0", 
          (char *)buf)) {
 
          err=172;

@@ -440,6 +440,13 @@ def fenix_onreceive(protocol):
             msg="CMD_GET_WORKER_FEE"
             err=fenixiot.getlasterror()
             errorname=fenixprotocol.geterrorname(err)
+    elif (command==fenixprotocol.CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT):
+        ret=get_signed_p2pow_block()
+        #Implementar aqui
+        if (ret==None):
+            msg="CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT"
+            err=fenixiot.getlasterror()
+            errorname=fenixprotocol.geterrorname(err)
     else:
         err=10011
         errorname="Error: Unknown command "+str(err)
@@ -470,8 +477,8 @@ fenixiot.ondata(fenix_onreceive)
 print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
-NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
-
+#NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
+NANO_NODE_URL="http://157.245.80.20:7076/"
 NANO_PREFERED_REPRESENTATIVE="nano_3ngt59dc7hbsjd1dum1bw9wbb87mbtuj4qkwcruididsb5rhgdt9zb4w7kb9"
 
 async def nano_node_srv(data):
