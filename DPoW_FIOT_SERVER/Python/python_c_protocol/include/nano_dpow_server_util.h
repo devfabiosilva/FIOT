@@ -7,10 +7,12 @@
 
 //Seg 23 Dez 2019 19:20:27 -03
 
-typedef uint8_t f_uint128_t[16];
-
+#define PUB_KEY_EXTENDED_MAX_LEN (size_t)40
 #define NANO_PREFIX "nano_"
 #define XRB_PREFIX "xrb_"
+#define REP_XRB (uint8_t)0x4
+#define SENDER_XRB (uint8_t)0x02
+#define DEST_XRB (uint8_t)0x01
 #define LIST_STR_WALLET (size_t)56
 #define MAX_STR_NANO_CHAR (size_t)70 //5+56+8+1
 #define MAX_STR_RAW_BALANCE_MAX (size_t)40
@@ -19,6 +21,9 @@ typedef uint8_t f_uint128_t[16];
 #define MAX_RAW_DATA_HASH (size_t)32
 #define MAX_STR_DATA_FRONTIER (size_t)65
 #define MAX_STR_DATA_HASH_VALUE (size_t)65
+
+typedef uint8_t NANO_PUBLIC_KEY_EXTENDED[PUB_KEY_EXTENDED_MAX_LEN];
+typedef uint8_t f_uint128_t[16];
 
 typedef struct f_block_transfer_t {
    uint8_t preamble[32];
@@ -39,4 +44,5 @@ int nano_base_32_2_hex(uint8_t *, const char *);
 int is_filled_with_value(uint8_t *, size_t, uint8_t);
 int is_null_hash(uint8_t *hash);
 int f_parse_p2pow_block_to_json(char *, size_t *, size_t, F_BLOCK_TRANSFER *, F_BLOCK_TRANSFER *);
+int pk_to_wallet(char *, char *, NANO_PUBLIC_KEY_EXTENDED);
 

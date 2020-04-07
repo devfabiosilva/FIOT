@@ -68,7 +68,8 @@ typedef enum err_t {
    PyC_ERR_NULL_FEE_POINTER,
    PyC_ERR_ZERO_FEE,
    PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND,
-   PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON
+   PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON,
+   PyC_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK
 
 } FPYC_ERR;
 
@@ -133,5 +134,7 @@ typedef enum err_t {
 #define MSG_ERR_P2POW_SIGNED_BLOCK_NOT_FOUND "\nSigned P2PoW raw block not found\n"
 #define MSG_FATAL_ERROR_MALLOC "\nError in memory allocation. Aborting ...\n\n"
 #define MSG_CANT_PARSE_SIGNED_P2POW_TO_JSON "\nCan't parse P2PoW transaction to JSON\n"
+#define MSG_UNABLE_NANO_WALLET_FROM_INCOMING_SIG_P2POW_BLK "\nUnable to get Nano wallet from incoming data of signed P2PoW block\n"
+
 
 

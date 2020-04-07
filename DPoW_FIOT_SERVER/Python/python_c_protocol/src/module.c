@@ -81,7 +81,8 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_NULL_FEE_POINTER", PyC_ERR_NULL_FEE_POINTER},
    {"F_ERR_ZERO_FEE", PyC_ERR_ZERO_FEE},
    {"F_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND", PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND},
-   {"F_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON", PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON}
+   {"F_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON", PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON},
+   {"F_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK", PyC_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK}
 
 };
 
@@ -423,6 +424,19 @@ static FPYC_ERR verify_incoming_outcoming_raw_data_util(FIOT_RAW_DATA_OBJ *self,
    return verify_protocol((F_NANO_HW_TRANSACTION *)p, is_incoming);
 
 }
+
+const char *f_parse_raw_to_nano_wallet_util(char *prefix, uint8_t *raw)
+{
+//MAX_STR_NANO_CHAR
+//NANO_PUBLIC_KEY_EXTENDED
+   static uint8_t buf[MAX_STR_NANO_CHAR+sizeof(NANO_PUBLIC_KEY_EXTENDED)];
+
+   if (pk_to_wallet((char *)buf, prefix, (uint8_t *)memcpy(buf+MAX_STR_NANO_CHAR, raw, 32)))
+      return NULL;
+
+   return (const char *)&buf;
+
+}
 //-util
 
 static PyObject *about(PyObject *self, PyObject *Py_UNUSED(ignored))
@@ -588,6 +602,18 @@ static PyObject *get_nano_addr_from_incoming_data(FIOT_RAW_DATA_OBJ *self, PyObj
 
       if (f_set_error_no_raise_util(self, MSG_ERR_INCOMING_OUTCOMING_FC, self->f_last_error)<0)
          return NULL;
+
+      return Py_None;
+
+   }
+
+   if ((*(uint32_t *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, command)))==CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT) {
+
+      if ((s=f_parse_raw_to_nano_wallet_util((((F_BLOCK_TRANSFER *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)))->prefixes&SENDER_XRB)?
+         XRB_PREFIX:NANO_PREFIX, ((F_BLOCK_TRANSFER *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)))->account))) return Py_BuildValue("s", s);
+
+      if (f_set_error_no_raise_util(self, MSG_UNABLE_NANO_WALLET_FROM_INCOMING_SIG_P2POW_BLK,
+         self->f_last_error=PyC_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK)<0) return NULL;
 
       return Py_None;
 
@@ -2607,8 +2633,8 @@ static PyObject *get_signed_p2pow_block(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UN
 
    ret=Py_None;
 
-   if (f_parse_p2pow_block_to_json(buf, NULL, 4096, (F_BLOCK_TRANSFER *)(self->raw_data+sizeof(F_NANO_HW_TRANSACTION)),
-      (sz_tmp)?(F_BLOCK_TRANSFER *)(self->raw_data+sizeof(F_NANO_HW_TRANSACTION)+sizeof(F_BLOCK_TRANSFER)):NULL)) {
+   if (f_parse_p2pow_block_to_json(buf, NULL, 4096, (F_BLOCK_TRANSFER *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)),
+      (sz_tmp)?(F_BLOCK_TRANSFER *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)+sizeof(F_BLOCK_TRANSFER)):NULL)) {
 
       if (f_set_error_no_raise_util(self, MSG_CANT_PARSE_SIGNED_P2POW_TO_JSON, self->f_last_error=PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON)<0)
          ret=NULL;

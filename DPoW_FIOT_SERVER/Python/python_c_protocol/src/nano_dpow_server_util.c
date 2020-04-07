@@ -20,16 +20,6 @@
 #include "crypto_generichash.h"
 #include "bignum.h"
 
-#define PUB_KEY_EXTENDED_MAX_LEN (size_t)40
-#define NANO_PREFIX "nano_"
-#define XRB_PREFIX "xrb_"
-#define MAX_STR_NANO_CHAR (size_t)70
-#define REP_XRB (uint8_t)0x4
-#define SENDER_XRB (uint8_t)0x02
-#define DEST_XRB (uint8_t)0x01
-
-typedef uint8_t NANO_PUBLIC_KEY_EXTENDED[PUB_KEY_EXTENDED_MAX_LEN];
-
 const char alphabet[]="13456789abcdefghijkmnopqrstuwxyz";
 const char P2POW_JSON_FORMAT[]="{\"user_transaction\":\"%0\",\"reward_transaction\":\"%1\"}";
 const char JSON_NANO_TRANSACTION[]="{\"action\":\"process\",\"json_block\":\"true\",\"block\":{\"type\":\"state\",\
