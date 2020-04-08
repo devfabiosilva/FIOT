@@ -79,8 +79,11 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 #define CMD_SEND_RAW_SIGNED_RESULT (uint32_t)((10<<1)|1)
 ////pub_add: Publish addrs
 //raw_data{
-// hash_transaction
-// hash_worker
+// nano_wallet: nano_wallet (string)
+// hash_transaction raw
+// hash_work (uint64)
+// hash_worker raw
+// worker_work (uint64)
 //}
 //
 

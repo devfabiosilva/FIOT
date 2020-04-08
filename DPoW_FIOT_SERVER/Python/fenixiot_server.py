@@ -12,6 +12,8 @@ import requests
 import json
 import asyncio
 import urllib3
+#import nano_config
+from nano_config import *
 
 #Qui 09 Jan 2020 22:40:39 -03 
 
@@ -442,9 +444,35 @@ def fenix_onreceive(protocol):
             errorname=fenixprotocol.geterrorname(err)
     elif (command==fenixprotocol.CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT):
         ret=get_signed_p2pow_block()
-        #Implementar aqui
-        if (ret==None):
+        if (ret):
+            loop=asyncio.get_event_loop()
+            res=None
+            try:
+                res=loop.run_until_complete(p2pow_send_json_signed_block(signed_json_str=ret))
+            except Exception as e:
+                err=11000
+                errorname="Error: 'p2pow_send_json_signed_block' "+str(type(e))+" with message: "+str(e)+" Error no.: "+str(err)
+            if (res):
+                trans_hash=""
+                worker_hash=""
+#####
+### Falta implementar aqui
+
+#####
+                ret=send_p2pow_signed_result(None, None, "", "")
+                if (ret==None):
+                    msg="ERR:send_p2pow_signed_result"
+                    err=fenixiot.getlasterror()
+                    errorname=fenixprotocol.geterrorname(err)
+        else:
             msg="CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT"
+            err=fenixiot.getlasterror()
+            errorname=fenixprotocol.geterrorname(err)
+    elif (command==fenixprotocol.CMD_GET_P2POW_RAW_RAW_REQ_INFO):
+        #Implementar aqui
+        ret=fenixiot.send_p2pow_req_info(None, None, "fee", "max_mul", "min_mul", "reward_account", "version")
+        if (ret==None):
+            msg="CMD_GET_P2POW_RAW_RAW_REQ_INFO"
             err=fenixiot.getlasterror()
             errorname=fenixprotocol.geterrorname(err)
     else:
@@ -477,9 +505,6 @@ fenixiot.ondata(fenix_onreceive)
 print(fenixprotocol.about())
 
 ################# GET PARAMETERS #######################
-#NANO_NODE_URL="<YOUR_NANO_NODE_HERE>"
-
-NANO_PREFERED_REPRESENTATIVE="nano_3ngt59dc7hbsjd1dum1bw9wbb87mbtuj4qkwcruididsb5rhgdt9zb4w7kb9"
 
 async def nano_node_srv(data):
    global NANO_NODE_URL
@@ -498,6 +523,7 @@ async def dpow_local_srv(data):
     Please, refer https://github.com/nanocurrency/nano-work-server and install it to use with your application.
     """
     global DPOW_DIFFICULTY
+    global DPOW_SERVER
     http=urllib3.PoolManager()
     parm='{"action":"work_generate","hash":"'+data+'","difficulty":"'+DPOW_DIFFICULTY+'"}'
     try:
@@ -520,6 +546,38 @@ async def dpow_local_srv(data):
             msg_error+=' HINT: '+res['hint']
         return {'error': msg_error}
     return {'error':'Unknown dpow_local_srv error'}
+
+###P2PoW request
+
+async def p2pow_req_info():
+    """Request a P2PoW server information about worker"""
+    global P2POW_SERVER
+    http=urllib3.PoolManager()
+    try:
+        r=http.request('GET', P2POW_SERVER+'/open_request')
+    except Exception as e:
+        return {'error':'Error when request encoded data in P2PoW server <'+str(type(e))+'> Reason: '+str(e)}
+    try:
+        res=json.loads(r.data.decode('utf-8'))
+    except:
+        res={'error':'Error "p2pow_req_info" when load decode data to JSON <'+str(type(e))+'> Reason: '+str(e)}
+
+    return res
+
+async def p2pow_send_json_signed_block(signed_json_str):
+    """Sends to P2PoW a Signed JSON block data containing transaction and fee signatures"""
+    global P2POW_SERVER
+    http=urllib3.PoolManager()
+    try:
+        r=http.request('POST', P2POW_SERVER+"", headers={'Content-Type':'application/json'}, body=signed_json_str)
+    except Exception as e:
+        return {'error':'Error when request encoded data <'+str(type(e))+'> Reason: '+str(e)}
+    try:
+        res=json.loads(r.data.decode('utf-8'))
+    except:
+        res={'error':'Error "p2pow_send_json_signed_block" when load decode data to JSON <'+str(type(e))+'> Reason: '+str(e)}
+
+    return res
 
 ################### MQTT SERVICE BEGIN ##################
 

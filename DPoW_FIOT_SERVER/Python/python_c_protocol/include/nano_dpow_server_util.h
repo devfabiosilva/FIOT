@@ -46,6 +46,13 @@ typedef struct f_p2pow_req_info_t {
    uint32_t version;
 } __attribute__((packed)) P2POW_REQ_INFO;
 
+typedef struct f_p2pow_signed_blk_res_t {
+    uint8_t trans_hash[32];
+    uint64_t trans_work;
+    uint8_t worker_hash[32];
+    uint64_t worker_work;
+} __attribute__((packed)) P2POW_REQ_RESULT;
+
 int valid_nano_wallet(const char *);
 int valid_raw_balance(const char *);
 int f_str_to_hex(uint8_t *, const char *);

@@ -71,7 +71,11 @@ typedef enum err_t {
    PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON,
    PyC_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK,
    PyC_ERR_FEE_MAX_MULT_NEGATIVE_OR_ZERO,
-   PyC_ERR_FEE_MIN_MULT_NEGATIVE_OR_ZERO
+   PyC_ERR_FEE_MIN_MULT_NEGATIVE_OR_ZERO,
+   PyC_ERR_INVALID_TRANS_HASH_RESULT,
+   PyC_ERR_INVALID_TRANS_HASH_RESULT_SZ,
+   PyC_ERR_INVALID_WORKER_HASH_RESULT_SZ,
+   PyC_ERR_INVALID_WORKER_HASH_RESULT
    //PyC_ERR_UNABLE_REQ_P2POW_CLIENT
 
 } FPYC_ERR;
@@ -145,5 +149,8 @@ typedef enum err_t {
 //#define MSG_ERR_P2POW_REQ_INFO_ERROR "\nCan't get request P2PoW. Error\n"
 //#define MSG_ERR_P2POW_REQ_INFO_INCOMING_DATA "\nCan't get request P2PoW from incoming data\n"
 #define MSG_ERR_INVALID_REWARD_ACCOUNT_WALLET "\nError. Invalid reward account\n"
-
+#define MSG_ERR_INVALID_P2POW_TRANS_HASH "\nInvalid P2PoW transaction hash result\n"
+#define MSG_ERR_INVALID_P2POW_TRANS_HASH_SZ "\nInvalid P2PoW transaction hash size\n"
+#define MSG_ERR_INVALID_P2POW_WORKER_HASH_SZ "\nInvalid P2PoW worker hash size\n"
+#define MSG_ERR_INVALID_P2POW_WORKER_HASH "\nInvalid P2PoW worker hash result\n"
 

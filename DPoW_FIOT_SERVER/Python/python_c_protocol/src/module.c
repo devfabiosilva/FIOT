@@ -84,7 +84,11 @@ static F_ERR_CONST ERR_CONST[] = {
    {"F_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON", PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON},
    {"F_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK", PyC_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK},
    {"F_ERR_FEE_MAX_MULT_NEGATIVE_OR_ZERO", PyC_ERR_FEE_MAX_MULT_NEGATIVE_OR_ZERO},
-   {"F_ERR_FEE_MIN_MULT_NEGATIVE_OR_ZERO", PyC_ERR_FEE_MIN_MULT_NEGATIVE_OR_ZERO}
+   {"F_ERR_FEE_MIN_MULT_NEGATIVE_OR_ZERO", PyC_ERR_FEE_MIN_MULT_NEGATIVE_OR_ZERO},
+   {"F_ERR_INVALID_TRANS_HASH_RESULT", PyC_ERR_INVALID_TRANS_HASH_RESULT},
+   {"F_ERR_INVALID_TRANS_HASH_RESULT_SZ", PyC_ERR_INVALID_TRANS_HASH_RESULT_SZ},
+   {"F_ERR_INVALID_WORKER_HASH_RESULT_SZ", PyC_ERR_INVALID_WORKER_HASH_RESULT_SZ},
+   {"F_ERR_INVALID_WORKER_HASH_RESULT", PyC_ERR_INVALID_WORKER_HASH_RESULT}
 //   {"F_ERR_UNABLE_REQ_P2POW_CLIENT", PyC_ERR_UNABLE_REQ_P2POW_CLIENT}
 
 };
@@ -1005,6 +1009,190 @@ static PyObject *p2pow_get_req_info(FIOT_RAW_DATA_OBJ *self, PyObject *Py_UNUSED
 */
 //set
 
+static PyObject *send_p2pow_signed_result(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
+{
+
+   static char *kwlist[] = {"nano", "publish", "trans_hash", "trans_work", "worker_hash", "worker_work", NULL};
+   char *buf_nano_addr, *pub_addr, *trans_hash, *worker_hash;
+   unsigned long int trans_work, worker_work;
+   F_NANO_HW_TRANSACTION *buf;
+   size_t sz_tmp;
+   void *p;
+   PyObject *ret;
+
+   if (!PyArg_ParseTupleAndKeywords(args, kwds, "zzsksk", kwlist, &buf_nano_addr, &pub_addr, &trans_hash, &trans_work, &worker_hash, &worker_work)) {
+
+      PyErr_SetString(PyExc_Exception, MSG_ERR_CANT_PARSE_TUPLE_AND_KEYWDS);
+      self->f_last_error=PyC_ERR_CANT_PARSE_TUPLE_AND_KEYWORDS;
+
+      return NULL;
+
+   }
+
+   if (!(buf=malloc(F_NANO_TRANSACTION_MAX_SZ))) {
+
+      if (f_set_error_util(self, PyExc_MemoryError, MSG_ERR_ALLOC_BUFFER, self->f_last_error=PyC_ERR_BUFFER_ALLOC)>0)
+         return Py_None;
+
+      return NULL;
+
+   }
+
+   buf->hdr.command=CMD_SEND_RAW_SIGNED_RESULT;
+   buf->hdr.raw_data_type=F_RAW_DATA_TYPE_RAW_DATA;
+
+// WARNING HERE. IF received command is 'CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT' then Nano Addres is in 32 bytes raw data and must be converted to Nano Wallet
+
+   if (!(p=(void *)buf_nano_addr))
+      ((((F_NANO_TRANSACTION_HDR *)(self->raw_data))->command)==CMD_GET_RAW_BLOCK_STATE_FROM_CLIENT)?
+         (p=(void *)f_parse_raw_to_nano_wallet_util((((F_BLOCK_TRANSFER *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)))->prefixes&SENDER_XRB)?
+            XRB_PREFIX:NANO_PREFIX, ((F_BLOCK_TRANSFER *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)))->account)):
+         (p=(void *)(self->raw_data+offsetof(F_NANO_HW_TRANSACTION, rawdata)));
+
+   ret=Py_None;
+
+   if ((sz_tmp=strnlen((const char *)p, MAX_STR_NANO_CHAR))==MAX_STR_NANO_CHAR) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, self->f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, self->f_last_error=PyC_ERR_EMPTY_STR)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   }
+
+   if ((self->f_last_error=valid_nano_wallet((const char *)p))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_NANO_WALLET_OUTCOMING, self->f_last_error)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   }
+
+   strncpy((char *)buf->rawdata, (const char *)p, MAX_STR_NANO_CHAR);
+
+   if (strnlen(trans_hash, 65)!=64) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_P2POW_TRANS_HASH_SZ, self->f_last_error=PyC_ERR_INVALID_TRANS_HASH_RESULT_SZ)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   }
+
+   if (f_str_to_hex(((P2POW_REQ_RESULT *)(buf->rawdata+MAX_STR_NANO_CHAR))->trans_hash, (const char *)trans_hash)) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_P2POW_TRANS_HASH, self->f_last_error=PyC_ERR_INVALID_TRANS_HASH_RESULT)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   }
+
+   ((P2POW_REQ_RESULT *)(buf->rawdata+MAX_STR_NANO_CHAR))->trans_work=(uint64_t)trans_work;
+//
+   if (strnlen(worker_hash, 65)!=64) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_P2POW_WORKER_HASH_SZ, self->f_last_error=PyC_ERR_INVALID_WORKER_HASH_RESULT_SZ)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   }
+
+   if (f_str_to_hex(((P2POW_REQ_RESULT *)(buf->rawdata+MAX_STR_NANO_CHAR))->worker_hash, (const char *)worker_hash)) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_INVALID_P2POW_WORKER_HASH, self->f_last_error=PyC_ERR_INVALID_WORKER_HASH_RESULT)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   }
+
+   ((P2POW_REQ_RESULT *)(buf->rawdata+MAX_STR_NANO_CHAR))->worker_work=(uint64_t)worker_work;
+
+////
+
+   buf->hdr.raw_data_sz=MAX_STR_NANO_CHAR+sizeof(P2POW_REQ_RESULT);
+
+   if (!(p=(void *)pub_addr))
+      p=(void *)(self->raw_data+offsetof(F_NANO_TRANSACTION_HDR, publish_str));
+
+   if ((sz_tmp=strnlen((const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ))==F_NANO_MQTT_PUBLISH_STR_SZ) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_MAX_STR_OVFL, self->f_last_error=PyC_ERR_STR_MAX_SZ_OVFL)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   } else if (sz_tmp==0) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_EMPTY_STR, self->f_last_error=PyC_ERR_EMPTY_STR)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   }
+
+   strncpy((char *)buf->hdr.publish_str, (const char *)p, F_NANO_MQTT_PUBLISH_STR_SZ);
+
+   if ((self->f_last_error=prepare_command(buf, NULL))) {
+
+      if (f_set_error_no_raise_util(self, MSG_ERR_PREPARE_COMMAND, self->f_last_error)<0)
+         ret=NULL;
+
+      goto send_p2pow_signed_result_EXIT1;
+
+   }
+
+   memcpy((void *)self->sent_raw_data, (const void *)buf, (size_t)(self->sent_raw_data_sz=(int)(buf->hdr.raw_data_sz+sizeof(F_NANO_TRANSACTION_HDR))));
+
+   if (self->fc_onsentdata) {
+
+      ret=NULL;
+
+      if (!f_parse_args_util(self->fc_onsentdata, "0I1s2s3s4L5s6L", buf->hdr.command, buf->hdr.publish_str, buf->rawdata,
+         fhex2strv2((char *)(buf->rawdata+buf->hdr.raw_data_sz), (const void *)((P2POW_REQ_RESULT *)(buf->rawdata+MAX_STR_NANO_CHAR))->trans_hash, 32, 1),
+         ((P2POW_REQ_RESULT *)(buf->rawdata+MAX_STR_NANO_CHAR))->trans_work,
+         fhex2strv2((char *)(buf->rawdata+buf->hdr.raw_data_sz+65), (const void *)((P2POW_REQ_RESULT *)(buf->rawdata+MAX_STR_NANO_CHAR))->worker_hash, 32, 1),
+         ((P2POW_REQ_RESULT *)(buf->rawdata+MAX_STR_NANO_CHAR))->worker_work)) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_PARSE_INTERNAL_ARGUMENTS, self->f_last_error=PyC_ERR_CANT_PARSE_INTERNAL_ARGUMENTS);
+
+         goto send_p2pow_signed_result_EXIT1;
+
+      }
+
+      if (!(PyObject_CallFunctionObjArgs(self->fc_onsentdata, self->fc_onsentdata, NULL))) {
+
+         f_set_error_util(self, PyExc_Exception, MSG_ERR_CANT_EXECUTE_FC_INTERNAL_ARGUMENTS, self->f_last_error=PyC_ERR_CANT_EXEC_FC_INTERNAL_ARGUMENTS);
+
+         goto send_p2pow_signed_result_EXIT1;
+
+      }
+
+      delete_slots_util(&self->fc_onsentdata);
+
+      ret=PyLong_FromLong((long int)(self->f_last_error=PyC_ERR_OK));
+
+   } else
+      ret=Py_BuildValue("y#", (const void *)self->sent_raw_data, (Py_ssize_t)self->sent_raw_data_sz);
+
+send_p2pow_signed_result_EXIT1:
+   memset(buf, 0, F_NANO_TRANSACTION_MAX_SZ);
+   free(buf);
+
+   return ret;
+
+}
+
 static PyObject *send_p2pow_req_info(FIOT_RAW_DATA_OBJ *self, PyObject *args, PyObject *kwds)
 {
 
@@ -1112,6 +1300,8 @@ static PyObject *send_p2pow_req_info(FIOT_RAW_DATA_OBJ *self, PyObject *args, Py
 
    (is_nano_prefix((const char *)reward_account, NANO_PREFIX))?(((P2POW_REQ_INFO *)(buf->rawdata+MAX_STR_NANO_CHAR))->reward_account_prefix=0):
       (((P2POW_REQ_INFO *)(buf->rawdata+MAX_STR_NANO_CHAR))->reward_account_prefix=WORKER_XRB);
+
+   ((P2POW_REQ_INFO *)(buf->rawdata+MAX_STR_NANO_CHAR))->version=(uint32_t)version;
 
 //////
 
@@ -3055,6 +3245,10 @@ static PyMethodDef fiot_methods[] = {
     {"send_preferred_representative", (PyCFunction)send_preferred_representative, METH_VARARGS|METH_KEYWORDS,
        "Returns Nano Wallet with a preferred representative FIOT server"},
     {"send_worker_fee", (PyCFunction)send_worker_fee, METH_VARARGS|METH_KEYWORDS, "Sends worker Nano Address and Fee to client"},
+    {"send_p2pow_signed_result", (PyCFunction)send_p2pow_signed_result, METH_VARARGS|METH_KEYWORDS,
+       "Returns raw protocol to send to client with successfully transaction hash and work hash"},
+    {"send_p2pow_req_info", (PyCFunction)send_p2pow_req_info, METH_NOARGS,
+       "Returns the protocol with the requested information of the worker"},
     {"getdataprotocol", (PyCFunction)getincomingmessage, METH_VARARGS|METH_KEYWORDS, "Check and process protocol if success"},
     {"get_nano_addr_from_incoming_data", (PyCFunction)get_nano_addr_from_incoming_data,
        METH_NOARGS, "Returns Nano address in incoming client data, if exists."},
@@ -3082,8 +3276,6 @@ static PyMethodDef fiot_methods[] = {
        "Returns signed JSON block string in incoming raw data memory, if exists."},
     {"get_signed_p2pow_block", (PyCFunction)get_signed_p2pow_block, METH_NOARGS,
        "Return (if success) an signed p2pow block in JSON format"},
-    {"send_p2pow_req_info", (PyCFunction)send_p2pow_req_info, METH_NOARGS,
-       "Returns the protocol with the requested information of the worker"},
     {"onerror", (PyCFunction)set_onerror, METH_VARARGS|METH_KEYWORDS,
        "On error event. Set a callable function here"},
     {"ondata", (PyCFunction)set_onreceivedfromclient, METH_VARARGS|METH_KEYWORDS,
