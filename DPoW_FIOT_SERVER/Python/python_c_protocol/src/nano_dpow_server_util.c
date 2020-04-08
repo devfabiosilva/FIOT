@@ -737,3 +737,47 @@ f_parse_p2pow_block_to_json_EXIT1:
 
 }
 
+int f_nano_parse_raw_str_to_raw128_t(uint8_t *res, const char *raw_str_value)
+{
+
+   int err;
+   mbedtls_mpi *A;
+
+   if ((err=valid_raw_balance(raw_str_value)))
+      return err;
+
+   if (!(A=malloc(sizeof(mbedtls_mpi))))
+      return 901;
+
+   mbedtls_mpi_init(A);
+
+   if (mbedtls_mpi_read_string(A, 10, raw_str_value)) {
+
+      err=902;
+
+      goto f_nano_parse_raw_str_to_raw128_t_EXIT1;
+
+   }
+
+   if (mbedtls_mpi_write_binary(A, (unsigned char *)res, sizeof(f_uint128_t)))
+      err=903;
+
+f_nano_parse_raw_str_to_raw128_t_EXIT1:
+   mbedtls_mpi_free(A);
+   memset(A, 0, sizeof(mbedtls_mpi));
+   free(A);
+
+   return err;
+
+}
+
+inline int is_nano_prefix(const char *nano_wallet, const char *prefix)
+{
+
+   if (strncmp(nano_wallet, prefix, sizeof(NANO_PREFIX)))
+      return 0;
+
+   return 1;
+
+}
+

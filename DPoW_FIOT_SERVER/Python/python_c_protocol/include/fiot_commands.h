@@ -84,6 +84,13 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 //}
 //
 
+#define CMD_SEND_P2POW_RAW_REQ_INFO (uint32_t)((11<<1)|1)
+////pub_add: Publish addrs
+//raw_data{
+// REQ_INFO_RAW_DATA
+//}
+//
+
 // Client CMD's
 #define CMD_GET_RAW_BALANCE (uint32_t)(CMD_SEND_RAW_BALANCE_TO_CLIENT^0x00000001)
 //pub_add: Publish addr
@@ -142,7 +149,12 @@ FPYC_ERR verify_protocol(F_NANO_HW_TRANSACTION *, int);
 // raw_signed_worker_fee_block(fee_data) --> can be null
 //}
 //
-#define LAST_COMMAND CMD_SEND_RAW_SIGNED_RESULT
+
+#define CMD_GET_P2POW_RAW_RAW_REQ_INFO (uint32_t)(CMD_SEND_P2POW_RAW_REQ_INFO^0x00000001)
+////pub_add: Publish addrs
+//
+
+#define LAST_COMMAND CMD_SEND_P2POW_RAW_REQ_INFO
 //pub_add: Publish addrs
 //raw_data{
 // error: uint32

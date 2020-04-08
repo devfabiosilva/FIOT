@@ -69,7 +69,10 @@ typedef enum err_t {
    PyC_ERR_ZERO_FEE,
    PyC_ERR_SIGNED_P2POW_BLOCK_NOT_FOUND,
    PyC_ERR_CANT_PARSE_SIGNED_P2POW_TO_JSON,
-   PyC_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK
+   PyC_ERR_UNABLE_GET_RAW_BALANCE_FROM_SIGNED_BLOCK,
+   PyC_ERR_FEE_MAX_MULT_NEGATIVE_OR_ZERO,
+   PyC_ERR_FEE_MIN_MULT_NEGATIVE_OR_ZERO
+   //PyC_ERR_UNABLE_REQ_P2POW_CLIENT
 
 } FPYC_ERR;
 
@@ -135,6 +138,12 @@ typedef enum err_t {
 #define MSG_FATAL_ERROR_MALLOC "\nError in memory allocation. Aborting ...\n\n"
 #define MSG_CANT_PARSE_SIGNED_P2POW_TO_JSON "\nCan't parse P2PoW transaction to JSON\n"
 #define MSG_UNABLE_NANO_WALLET_FROM_INCOMING_SIG_P2POW_BLK "\nUnable to get Nano wallet from incoming data of signed P2PoW block\n"
-
+#define MSG_ERR_INVALID_FEE_VALUE "\nInvalid fee value\n"
+//#define MSG_ERR_PARSE_STR_TO_HEX "\nCan't parse string to HEX\n"
+#define MSG_ERR_MAX_MUL_NEG_ZERO "\nError. Max multiplier has a float type negative or zero\n"
+#define MSG_ERR_MIN_MUL_NEG_ZERO "\nError. Min multiplier has a float type negative or zero\n"
+//#define MSG_ERR_P2POW_REQ_INFO_ERROR "\nCan't get request P2PoW. Error\n"
+//#define MSG_ERR_P2POW_REQ_INFO_INCOMING_DATA "\nCan't get request P2PoW from incoming data\n"
+#define MSG_ERR_INVALID_REWARD_ACCOUNT_WALLET "\nError. Invalid reward account\n"
 
 
